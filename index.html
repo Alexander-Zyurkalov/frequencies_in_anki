@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div style="width: 800px; margin: 0 auto;">
+    <div>
+        <h3>Target Waveform</h3>
+        <canvas id="targetCanvas" width="800" height="200" style="border:1px solid #ddd;"></canvas>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <h3>Your Attempt</h3>
+        <canvas id="attemptCanvas" width="800" height="200" style="border:1px solid #ddd;"></canvas>
+        <div id="sliderContainer" style="margin-top: 10px;"></div>
+    </div>
+</div>
+
+<script>
+    // For testing here - in Anki this would be replaced with {{frequencies}}
+    const frequencyString = "1 0.5 0.3 0.2";
+    const frequencies = frequencyString.split(' ').map(f => parseFloat(f));
+
+    let lastModifiedHarmonic = null;
+    const userCoefficients = new Array(frequencies.length).fill(0);
+
+    function createSliders() {
+        const container = document.getElementById('sliderContainer');
+
+        frequencies.forEach((targetCoef, i) => {
+            const harmonicNum = i + 1;
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+
+            const label = document.createElement('label');
+            label.textContent = `Component ${harmonicNum}: `;
+
+            const value = document.createElement('span');
+            value.id = `value${harmonicNum}`;
+            value.textContent = '0.00';
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = 0;
+            slider.max = 10;
+            slider.step = 0.1;
+            slider.value = 0;
+            slider.style.width = '300px';
+
+            slider.oninput = () => {
+                const newValue = parseFloat(slider.value);
+                value.textContent = newValue.toFixed(1);
+                userCoefficients[i] = newValue;
+                lastModifiedHarmonic = i;
+                drawAttempt();
+            };
+
+            div.appendChild(label);
+            div.appendChild(slider);
+            div.appendChild(value);
+            container.appendChild(div);
+        });
+    }
+
+    function drawWaveform(canvas, coefficients, isTarget = false) {
+        const ctx = canvas.getContext('2d');
+
+        // Draw center line
+        ctx.strokeStyle = '#999';
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height/2);
+        ctx.lineTo(canvas.width, canvas.height/2);
+        ctx.stroke();
+
+        // Calculate points
+        const points = new Array(canvas.width).fill(0);
+
+        coefficients.forEach((freq, i) => {
+            for (let x = 0; x < canvas.width; x++) {
+                const t = x * (Math.PI * 2 / 200);
+                points[x] += Math.sin(freq * t);  // freq directly controls frequency, amplitude is fixed at 1
+            }
+        });
+
+        // Scale to fit canvas
+        const maxAmp = Math.max(1, ...points.map(Math.abs));
+        const scale = (canvas.height/2 - 20) / maxAmp;
+
+        // Draw waveform
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((y, x) => {
+            const scaledY = y * scale + canvas.height/2;
+            if (x === 0) ctx.moveTo(x, scaledY);
+            else ctx.lineTo(x, scaledY);
+        });
+        ctx.stroke();
+    }
+
+    function drawSingleHarmonic(canvas, harmonicIndex, frequency) {
+        const ctx = canvas.getContext('2d');
+
+        // Calculate points for single frequency
+        const points = new Array(canvas.width).fill(0);
+
+        for (let x = 0; x < canvas.width; x++) {
+            const t = x * (Math.PI * 2 / 200);
+            points[x] = Math.sin(frequency * t);  // frequency directly controls cycles, amplitude fixed at 1
+        }
+
+        // Scale consistently
+        const maxAmp = Math.max(1, ...points.map(Math.abs));
+        const scale = (canvas.height/2 - 20) / maxAmp;
+
+        // Draw waveform
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        points.forEach((y, x) => {
+            const scaledY = y * scale + canvas.height/2;
+            if (x === 0) ctx.moveTo(x, scaledY);
+            else ctx.lineTo(x, scaledY);
+        });
+        ctx.stroke();
+    }
+
+    function drawAttempt() {
+        const canvas = document.getElementById('attemptCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw sum of all frequencies first
+        drawWaveform(canvas, userCoefficients);
+
+        // Draw last modified frequency if any
+        if (lastModifiedHarmonic !== null) {
+            drawSingleHarmonic(canvas, lastModifiedHarmonic, userCoefficients[lastModifiedHarmonic]);
+        }
+    }
+
+    // Initial setup
+    createSliders();
+    drawWaveform(document.getElementById('targetCanvas'), frequencies, true);
+    drawAttempt();
+</script>
+</body>
+</html>
