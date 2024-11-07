@@ -210,9 +210,12 @@
     }
 
     function updateAnswerString() {
-        var answer = userComponents.map(comp =>
-            `${comp.freq.toFixed(1)} ${comp.amp.toFixed(2)} ${comp.phase.toFixed(2)}`
-        ).join(', ');
+        var answer = userComponents.map(comp => {
+            let freq = Number(comp.freq.toFixed(1)).toString();
+            let amp = Number(comp.amp.toFixed(2)).toString();
+            let phase = Number(comp.phase.toFixed(2)).toString();
+            return `${freq} ${amp} ${phase}`;
+        }).join(', ');
         document.getElementById('answerString').textContent = answer;
     }
 
