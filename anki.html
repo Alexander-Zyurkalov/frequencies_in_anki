@@ -26,6 +26,11 @@
     </div>
 
     <div id="sliderContainer"></div>
+
+    <div class="answer-container">
+        <span id="answerString"></span>
+        <button id="copyButton" class="copy-button">Copy</button>
+    </div>
 </div>
 
 <script>
@@ -140,9 +145,9 @@
         div.appendChild(title);
 
         var controls = [
-            {name: 'freq', label: 'Frequency', max: 10, step: 0.1},
-            {name: 'amp', label: 'Amplitude', max: 1, step: 0.01},
-            {name: 'phase', label: 'Phase', max: 1, step: 0.01}
+            {name: 'freq', label: 'F', max: 10, step: 0.1},
+            {name: 'amp', label: 'A', max: 1, step: 0.01},
+            {name: 'phase', label: 'P', max: 1, step: 0.01}
         ];
 
         for (var i = 0; i < controls.length; i++) {
@@ -152,6 +157,12 @@
 
             var row = document.createElement('div');
             row.className = 'slider-row';
+
+            // Minus button
+            var minusBtn = document.createElement('button');
+            minusBtn.className = 'adjust-button';
+            minusBtn.textContent = '-';
+            minusBtn.onclick = createAdjustHandler(index, control.name, -control.step);
 
             var label = document.createElement('span');
             label.className = 'slider-label';
@@ -165,18 +176,19 @@
             slider.step = control.step;
             slider.value = userComponents[index][control.name];
             slider.setAttribute('data-control', control.name);
+            slider.oninput = createSliderHandler(index, control.name);
+            slider.onchange = createSliderHandler(index, control.name);
 
-            var value = document.createElement('span');
-            value.className = 'value-display';
-            value.setAttribute('data-for', control.name);
-            value.textContent = userComponents[index][control.name].toFixed(2);
+            // Plus button (replaces value display)
+            var plusBtn = document.createElement('button');
+            plusBtn.className = 'adjust-button';
+            plusBtn.textContent = '+';
+            plusBtn.onclick = createAdjustHandler(index, control.name, control.step);
 
-            slider.onchange = createSliderHandler(index, control.name, value);
-            slider.oninput = createSliderHandler(index, control.name, value);
-
+            row.appendChild(minusBtn);
             row.appendChild(label);
             row.appendChild(slider);
-            row.appendChild(value);
+            row.appendChild(plusBtn);
             container.appendChild(row);
             div.appendChild(container);
         }
@@ -184,13 +196,46 @@
         return div;
     }
 
-    function createSliderHandler(index, controlName, valueDisplay) {
+    function createAdjustHandler(index, controlName, step) {
         return function() {
-            var newValue = parseFloat(this.value);
-            valueDisplay.textContent = newValue.toFixed(2);
+            var slider = document.querySelector(`[data-control="${controlName}"]`);
+            var currentValue = parseFloat(slider.value);
+            var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
+            slider.value = newValue;
             userComponents[index][controlName] = newValue;
             lastModifiedHarmonic = index;
             drawAttempt();
+            updateAnswerString();
+        };
+    }
+
+    function createSliderHandler(index, controlName) {
+        return function() {
+            var newValue = parseFloat(this.value);
+            userComponents[index][controlName] = newValue;
+            lastModifiedHarmonic = index;
+            drawAttempt();
+            updateAnswerString();
+        };
+    }
+
+    function updateAnswerString() {
+        var answer = userComponents.map(comp =>
+            `${comp.freq.toFixed(1)} ${comp.amp.toFixed(2)} ${comp.phase.toFixed(2)}`
+        ).join(', ');
+        document.getElementById('answerString').textContent = answer;
+    }
+
+    function initializeCopyButton() {
+        document.getElementById('copyButton').onclick = function() {
+            var text = document.getElementById('answerString').textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                var originalText = this.textContent;
+                this.textContent = 'Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 1000);
+            }.bind(this));
         };
     }
 
@@ -318,6 +363,8 @@
 
         updateComponentView();
         redrawAll();
+        updateAnswerString();
+        initializeCopyButton();
 
         // Handle window resize
         var resizeTimer = null;
