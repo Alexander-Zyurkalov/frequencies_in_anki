@@ -6,10 +6,6 @@
                 <label>Cycles: <span id="cyclesValue">2.0</span></label>
                 <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" class="slider">
             </div>
-            <div style="margin-top: 5px;">
-                <input type="checkbox" id="showGridLines" checked>
-                <label for="showGridLines">Show grid</label>
-            </div>
         </div>
         <canvas id="targetCanvas" width="800" height="200"></canvas>
     </div>
@@ -37,7 +33,6 @@
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
     var numCycles = 2;
-    var showGrid = true;
 
     // Parse frequency string
     var frequencyString = '{{frequencies}}';
@@ -82,11 +77,6 @@
     function updateCycles() {
         numCycles = parseFloat(this.value);
         document.getElementById('cyclesValue').textContent = numCycles.toFixed(1);
-        redrawAll();
-    }
-
-    function updateGrid() {
-        showGrid = this.checked;
         redrawAll();
     }
 
@@ -240,8 +230,6 @@
     }
 
     function drawGridLines(canvas, ctx) {
-        if (!showGrid) return;
-
         var rect = canvas.getBoundingClientRect();
         var cycleWidth = rect.width / numCycles;
 
@@ -357,7 +345,6 @@
 
         document.getElementById('cyclesSlider').onchange = updateCycles;
         document.getElementById('cyclesSlider').oninput = updateCycles;
-        document.getElementById('showGridLines').onchange = updateGrid;
         document.getElementById('prevComponent').onclick = navigatePrev;
         document.getElementById('nextComponent').onclick = navigateNext;
 
