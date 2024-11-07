@@ -48,11 +48,17 @@
                 amp: parseFloat(parts[1]),
                 phase: parseFloat(parts[2])
             });
-            userComponents.push({
+            var userComponentDefaultValues = {
                 freq: 0,
                 amp: 0,
                 phase: 0
-            });
+            };
+            if (i === 0) {
+                userComponentDefaultValues.freq = 1;
+                userComponentDefaultValues.amp = 1;
+                userComponentDefaultValues.phase = 0;
+            }
+            userComponents.push(userComponentDefaultValues);
         }
     }
 
@@ -239,13 +245,7 @@
             }
         }
 
-        // Find max amplitude
-        var maxAmp = 1;
-        for (var i = 0; i < points.length; i++) {
-            maxAmp = Math.max(maxAmp, Math.abs(points[i]));
-        }
-
-        var scale = (rect.height/2 - 20) / maxAmp;
+        var scale = (rect.height/2 - 20);
 
         // Draw waveform
         ctx.strokeStyle = isTarget ? 'blue' : 'red';
@@ -275,12 +275,7 @@
             points[x] = component.amp * Math.sin(component.freq * t + component.phase * Math.PI * 2);
         }
 
-        var maxAmp = 1;
-        for (var i = 0; i < points.length; i++) {
-            maxAmp = Math.max(maxAmp, Math.abs(points[i]));
-        }
-
-        var scale = (rect.height/2 - 20) / maxAmp;
+        var scale = (rect.height/2 - 20);
 
         ctx.strokeStyle = '#888';
         ctx.lineWidth = 1;
