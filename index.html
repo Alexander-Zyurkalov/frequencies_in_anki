@@ -34,8 +34,12 @@
     cyclesSlider.oninput = () => {
         numCycles = parseFloat(cyclesSlider.value);
         cyclesValue.textContent = numCycles.toFixed(1);
-        // Redraw both canvases
-        drawWaveform(document.getElementById('targetCanvas'), frequencies, true);
+        // Clear and redraw target canvas
+        const targetCanvas = document.getElementById('targetCanvas');
+        const targetCtx = targetCanvas.getContext('2d');
+        targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
+        drawWaveform(targetCanvas, frequencies, true);
+        // Redraw attempt canvas
         drawAttempt();
     };
 
