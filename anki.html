@@ -1,6 +1,5 @@
 <div class="main-container">
     <div class="canvas-container">
-        <h3>Target Waveform</h3>
         <div class="controls-container">
             <div class="cycles-control">
                 <label>Cycles: <span id="cyclesValue">2.0</span></label>
@@ -11,7 +10,6 @@
     </div>
 
     <div class="canvas-container">
-        <h3>Your Attempt</h3>
         <canvas id="attemptCanvas" width="800" height="200"></canvas>
     </div>
 
@@ -57,7 +55,8 @@
 
         // Create and position new indicator
         const indicator = createFloatingIndicator();
-        slider.parentElement.appendChild(indicator);
+        const answerContainer = document.querySelector('.navigation-controls');
+        answerContainer.appendChild(indicator);
 
         // Format the value based on type
         let displayValue;
@@ -70,14 +69,6 @@
         }
 
         indicator.textContent = displayValue;
-
-        // Position the indicator
-        const sliderRect = slider.getBoundingClientRect();
-        const containerRect = slider.parentElement.getBoundingClientRect();
-        const percentage = (value - slider.min) / (slider.max - slider.min);
-        const position = percentage * (sliderRect.width - 20) + 10; // Adjust for slider thumb
-
-        indicator.style.left = `${position}px`;
         indicator.style.opacity = '1';
 
         activeIndicator = indicator;
