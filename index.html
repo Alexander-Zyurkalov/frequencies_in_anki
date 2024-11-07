@@ -4,6 +4,10 @@
 <div style="width: 800px; margin: 0 auto;">
     <div>
         <h3>Target Waveform</h3>
+        <div style="margin-bottom: 10px;">
+            <label>Cycles of fundamental: <span id="cyclesValue">2.0</span></label>
+            <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" style="width: 300px;">
+        </div>
         <canvas id="targetCanvas" width="800" height="200" style="border:1px solid #ddd;"></canvas>
     </div>
 
@@ -21,6 +25,19 @@
 
     let lastModifiedHarmonic = null;
     const userCoefficients = new Array(frequencies.length).fill(0);
+    let numCycles = 2; // Default number of fundamental cycles to show
+
+    // Setup cycles slider
+    const cyclesSlider = document.getElementById('cyclesSlider');
+    const cyclesValue = document.getElementById('cyclesValue');
+
+    cyclesSlider.oninput = () => {
+        numCycles = parseFloat(cyclesSlider.value);
+        cyclesValue.textContent = numCycles.toFixed(1);
+        // Redraw both canvases
+        drawWaveform(document.getElementById('targetCanvas'), frequencies, true);
+        drawAttempt();
+    };
 
     function createSliders() {
         const container = document.getElementById('sliderContainer');
@@ -75,8 +92,8 @@
 
         coefficients.forEach((freq, i) => {
             for (let x = 0; x < canvas.width; x++) {
-                const t = x * (Math.PI * 2 / 200);
-                points[x] += Math.sin(freq * t);  // freq directly controls frequency, amplitude is fixed at 1
+                const t = x * (Math.PI * 2 * numCycles / canvas.width);
+                points[x] += Math.sin(freq * t);
             }
         });
 
@@ -103,8 +120,8 @@
         const points = new Array(canvas.width).fill(0);
 
         for (let x = 0; x < canvas.width; x++) {
-            const t = x * (Math.PI * 2 / 200);
-            points[x] = Math.sin(frequency * t);  // frequency directly controls cycles, amplitude fixed at 1
+            const t = x * (Math.PI * 2 * numCycles / canvas.width);
+            points[x] = Math.sin(frequency * t);
         }
 
         // Scale consistently
