@@ -65,7 +65,7 @@
         } else if (type === 'amp') {
             displayValue = value.toFixed(2);
         } else { // phase
-            displayValue = (value * 360).toFixed(0) + '°';
+            displayValue = (value).toFixed(2);
         }
 
         indicator.textContent = displayValue;
