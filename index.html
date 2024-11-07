@@ -23,16 +23,25 @@
 </div>
 
 <script>
-    // For testing here - in Anki this would be replaced with {{frequencies}}
-    const frequencyString = "1";
-    const frequencies = frequencyString.split(' ').map(f => parseFloat(f));
+    // For testing - in Anki this would be replaced with {{frequencies}}
+    const frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1";
+
+    // Parse frequency string into array of {freq, amplitude, phase} objects
+    const components = frequencyString.split(',').map(comp => {
+        const [freq, amp, phase] = comp.trim().split(' ').map(Number);
+        return { freq, amp, phase };
+    });
 
     let lastModifiedHarmonic = null;
-    const userCoefficients = new Array(frequencies.length).fill(0);
-    let numCycles = 2; // Default number of fundamental cycles to show
-    let showGrid = true; // Default grid visibility
+    const userComponents = components.map(comp => ({
+        freq: 0,
+        amp: 0,
+        phase: 0
+    }));
 
-    // Setup cycles slider
+    let numCycles = 2;
+    let showGrid = true;
+
     const cyclesSlider = document.getElementById('cyclesSlider');
     const cyclesValue = document.getElementById('cyclesValue');
     const gridCheckbox = document.getElementById('showGridLines');
@@ -49,49 +58,128 @@
     };
 
     function redrawAll() {
-        // Clear and redraw target canvas
         const targetCanvas = document.getElementById('targetCanvas');
         const targetCtx = targetCanvas.getContext('2d');
         targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-        drawWaveform(targetCanvas, frequencies, true);
-        // Redraw attempt canvas
+        drawWaveform(targetCanvas, components, true);
         drawAttempt();
     }
 
     function createSliders() {
         const container = document.getElementById('sliderContainer');
+        container.innerHTML = ''; // Clear existing sliders
 
-        frequencies.forEach((targetCoef, i) => {
+        components.forEach((comp, i) => {
             const harmonicNum = i + 1;
             const div = document.createElement('div');
-            div.style.marginBottom = '10px';
+            div.style.marginBottom = '20px';
+            div.style.padding = '10px';
+            div.style.border = '1px solid #ddd';
+            div.style.borderRadius = '5px';
 
-            const label = document.createElement('label');
-            label.textContent = `Component ${harmonicNum}: `;
+            // Component label
+            const label = document.createElement('div');
+            label.textContent = `Component ${harmonicNum}:`;
+            label.style.marginBottom = '10px';
+            label.style.fontWeight = 'bold';
+            div.appendChild(label);
 
-            const value = document.createElement('span');
-            value.id = `value${harmonicNum}`;
-            value.textContent = '0.00';
+            // Frequency slider
+            const freqDiv = document.createElement('div');
+            freqDiv.style.marginBottom = '10px';
 
-            const slider = document.createElement('input');
-            slider.type = 'range';
-            slider.min = 0;
-            slider.max = 10;
-            slider.step = 0.1;
-            slider.value = 0;
-            slider.style.width = '300px';
+            const freqLabel = document.createElement('label');
+            freqLabel.textContent = 'Frequency: ';
 
-            slider.oninput = () => {
-                const newValue = parseFloat(slider.value);
-                value.textContent = newValue.toFixed(1);
-                userCoefficients[i] = newValue;
+            const freqValue = document.createElement('span');
+            freqValue.id = `freqValue${harmonicNum}`;
+            freqValue.textContent = '0.00';
+
+            const freqSlider = document.createElement('input');
+            freqSlider.type = 'range';
+            freqSlider.min = 0;
+            freqSlider.max = 10;
+            freqSlider.step = 0.1;
+            freqSlider.value = 0;
+            freqSlider.style.width = '300px';
+
+            freqDiv.appendChild(freqLabel);
+            freqDiv.appendChild(freqSlider);
+            freqDiv.appendChild(freqValue);
+
+            // Amplitude slider
+            const ampDiv = document.createElement('div');
+            ampDiv.style.marginBottom = '10px';
+
+            const ampLabel = document.createElement('label');
+            ampLabel.textContent = 'Amplitude: ';
+
+            const ampValue = document.createElement('span');
+            ampValue.id = `ampValue${harmonicNum}`;
+            ampValue.textContent = '0.00';
+
+            const ampSlider = document.createElement('input');
+            ampSlider.type = 'range';
+            ampSlider.min = 0;
+            ampSlider.max = 1;
+            ampSlider.step = 0.01;
+            ampSlider.value = 0;
+            ampSlider.style.width = '300px';
+
+            ampDiv.appendChild(ampLabel);
+            ampDiv.appendChild(ampSlider);
+            ampDiv.appendChild(ampValue);
+
+            // Phase slider
+            const phaseDiv = document.createElement('div');
+
+            const phaseLabel = document.createElement('label');
+            phaseLabel.textContent = 'Phase: ';
+
+            const phaseValue = document.createElement('span');
+            phaseValue.id = `phaseValue${harmonicNum}`;
+            phaseValue.textContent = '0.00';
+
+            const phaseSlider = document.createElement('input');
+            phaseSlider.type = 'range';
+            phaseSlider.min = 0;
+            phaseSlider.max = 1;
+            phaseSlider.step = 0.01;
+            phaseSlider.value = 0;
+            phaseSlider.style.width = '300px';
+
+            phaseDiv.appendChild(phaseLabel);
+            phaseDiv.appendChild(phaseSlider);
+            phaseDiv.appendChild(phaseValue);
+
+            // Add event listeners
+            freqSlider.oninput = () => {
+                const newValue = parseFloat(freqSlider.value);
+                freqValue.textContent = newValue.toFixed(2);
+                userComponents[i].freq = newValue;
                 lastModifiedHarmonic = i;
                 drawAttempt();
             };
 
-            div.appendChild(label);
-            div.appendChild(slider);
-            div.appendChild(value);
+            ampSlider.oninput = () => {
+                const newValue = parseFloat(ampSlider.value);
+                ampValue.textContent = newValue.toFixed(2);
+                userComponents[i].amp = newValue;
+                lastModifiedHarmonic = i;
+                drawAttempt();
+            };
+
+            phaseSlider.oninput = () => {
+                const newValue = parseFloat(phaseSlider.value);
+                phaseValue.textContent = newValue.toFixed(2);
+                userComponents[i].phase = newValue;
+                lastModifiedHarmonic = i;
+                drawAttempt();
+            };
+
+            div.appendChild(freqDiv);
+            div.appendChild(ampDiv);
+            div.appendChild(phaseDiv);
             container.appendChild(div);
         });
     }
@@ -104,7 +192,7 @@
 
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]); // Create dashed lines
+        ctx.setLineDash([5, 5]);
 
         for (let i = 0; i <= numCycles; i++) {
             const x = i * cycleWidth;
@@ -114,13 +202,12 @@
             ctx.stroke();
         }
 
-        ctx.setLineDash([]); // Reset to solid lines
+        ctx.setLineDash([]);
     }
 
-    function drawWaveform(canvas, coefficients, isTarget = false) {
+    function drawWaveform(canvas, components, isTarget = false) {
         const ctx = canvas.getContext('2d');
 
-        // Draw grid lines first
         drawGridLines(canvas);
 
         // Draw center line
@@ -133,10 +220,11 @@
         // Calculate points
         const points = new Array(canvas.width).fill(0);
 
-        coefficients.forEach((freq, i) => {
+        components.forEach(comp => {
+            if (comp.freq === 0) return; // Skip components with zero frequency
             for (let x = 0; x < canvas.width; x++) {
                 const t = x * (Math.PI * 2 * numCycles / canvas.width);
-                points[x] += Math.sin(freq * t);
+                points[x] += comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
             }
         });
 
@@ -145,7 +233,7 @@
         const scale = (canvas.height/2 - 20) / maxAmp;
 
         // Draw waveform
-        ctx.strokeStyle = 'red';
+        ctx.strokeStyle = isTarget ? 'blue' : 'red';
         ctx.lineWidth = 2;
         ctx.beginPath();
         points.forEach((y, x) => {
@@ -156,15 +244,15 @@
         ctx.stroke();
     }
 
-    function drawSingleHarmonic(canvas, harmonicIndex, frequency) {
-        const ctx = canvas.getContext('2d');
+    function drawSingleHarmonic(canvas, component) {
+        if (component.freq === 0) return; // Skip components with zero frequency
 
-        // Calculate points for single frequency
+        const ctx = canvas.getContext('2d');
         const points = new Array(canvas.width).fill(0);
 
         for (let x = 0; x < canvas.width; x++) {
             const t = x * (Math.PI * 2 * numCycles / canvas.width);
-            points[x] = Math.sin(frequency * t);
+            points[x] = component.amp * Math.sin(component.freq * t + component.phase * Math.PI * 2);
         }
 
         // Scale consistently
@@ -188,21 +276,17 @@
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw grid lines first
         drawGridLines(canvas);
+        drawWaveform(canvas, userComponents);
 
-        // Draw sum of all frequencies first
-        drawWaveform(canvas, userCoefficients);
-
-        // Draw last modified frequency if any
         if (lastModifiedHarmonic !== null) {
-            drawSingleHarmonic(canvas, lastModifiedHarmonic, userCoefficients[lastModifiedHarmonic]);
+            drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
         }
     }
 
     // Initial setup
     createSliders();
-    drawWaveform(document.getElementById('targetCanvas'), frequencies, true);
+    drawWaveform(document.getElementById('targetCanvas'), components, true);
     drawAttempt();
 </script>
 </body>
