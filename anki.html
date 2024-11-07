@@ -39,6 +39,56 @@
     var components = [];
     var userComponents = [];
 
+    var activeIndicator = null;
+    var indicatorTimeout = null;
+
+    function createFloatingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'floating-indicator';
+        return indicator;
+    }
+
+    function showFloatingValue(value, slider, type) {
+        // Remove any existing indicator
+        if (activeIndicator) {
+            activeIndicator.remove();
+        }
+        clearTimeout(indicatorTimeout);
+
+        // Create and position new indicator
+        const indicator = createFloatingIndicator();
+        slider.parentElement.appendChild(indicator);
+
+        // Format the value based on type
+        let displayValue;
+        if (type === 'freq') {
+            displayValue = value.toFixed(1) + '×';
+        } else if (type === 'amp') {
+            displayValue = value.toFixed(2);
+        } else { // phase
+            displayValue = (value * 360).toFixed(0) + '°';
+        }
+
+        indicator.textContent = displayValue;
+
+        // Position the indicator
+        const sliderRect = slider.getBoundingClientRect();
+        const containerRect = slider.parentElement.getBoundingClientRect();
+        const percentage = (value - slider.min) / (slider.max - slider.min);
+        const position = percentage * (sliderRect.width - 20) + 10; // Adjust for slider thumb
+
+        indicator.style.left = `${position}px`;
+        indicator.style.opacity = '1';
+
+        activeIndicator = indicator;
+
+        // Hide after 1.5 seconds
+        indicatorTimeout = setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 200);
+        }, 1500);
+    }
+
     function initializeComponents() {
         var compStrings = frequencyString.split(',');
         for (var i = 0; i < compStrings.length; i++) {
@@ -194,6 +244,7 @@
             slider.value = newValue;
             userComponents[index][controlName] = newValue;
             lastModifiedHarmonic = index;
+            showFloatingValue(newValue, slider, controlName);
             drawAttempt();
             updateAnswerString();
         };
@@ -204,6 +255,7 @@
             var newValue = parseFloat(this.value);
             userComponents[index][controlName] = newValue;
             lastModifiedHarmonic = index;
+            showFloatingValue(newValue, this, controlName);
             drawAttempt();
             updateAnswerString();
         };

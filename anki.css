@@ -168,3 +168,21 @@ canvas {
 .slider-label {
     min-width: 30px;  /* Reduced from 80px */
 }
+
+.floating-indicator {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 1000;
+    transform: translateY(-25px);
+}
+
+.component-container {
+    position: relative; /* Add this to properly position indicators */
+}
