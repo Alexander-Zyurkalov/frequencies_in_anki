@@ -1,0 +1,340 @@
+<div class="main-container">
+    <div class="canvas-container">
+        <h3>Target Waveform</h3>
+        <div class="controls-container">
+            <div class="cycles-control">
+                <label>Cycles: <span id="cyclesValue">2.0</span></label>
+                <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" class="slider">
+            </div>
+            <div style="margin-top: 5px;">
+                <input type="checkbox" id="showGridLines" checked>
+                <label for="showGridLines">Show grid</label>
+            </div>
+        </div>
+        <canvas id="targetCanvas" width="800" height="200"></canvas>
+    </div>
+
+    <div class="canvas-container">
+        <h3>Your Attempt</h3>
+        <canvas id="attemptCanvas" width="800" height="200"></canvas>
+    </div>
+
+    <div class="navigation-controls">
+        <button id="prevComponent" class="nav-button">&lt; Previous</button>
+        <span id="componentNumber">Component 1 of X</span>
+        <button id="nextComponent" class="nav-button">Next &gt;</button>
+    </div>
+
+    <div id="sliderContainer"></div>
+</div>
+
+<script>
+    var currentComponentIndex = 0;
+    var lastModifiedHarmonic = null;
+    var numCycles = 2;
+    var showGrid = true;
+
+    // Parse frequency string
+    var frequencyString = '{{frequencies}}';
+    var components = [];
+    var userComponents = [];
+
+    function initializeComponents() {
+        var compStrings = frequencyString.split(',');
+        for (var i = 0; i < compStrings.length; i++) {
+            var parts = compStrings[i].trim().split(' ');
+            components.push({
+                freq: parseFloat(parts[0]),
+                amp: parseFloat(parts[1]),
+                phase: parseFloat(parts[2])
+            });
+            userComponents.push({
+                freq: 0,
+                amp: 0,
+                phase: 0
+            });
+        }
+    }
+
+    function setupCanvas(canvas) {
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.width * 0.25 * dpr;
+
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    function updateCycles() {
+        numCycles = parseFloat(this.value);
+        document.getElementById('cyclesValue').textContent = numCycles.toFixed(1);
+        redrawAll();
+    }
+
+    function updateGrid() {
+        showGrid = this.checked;
+        redrawAll();
+    }
+
+    function navigatePrev() {
+        if (currentComponentIndex > 0) {
+            currentComponentIndex--;
+            updateComponentView();
+        }
+    }
+
+    function navigateNext() {
+        if (currentComponentIndex < components.length - 1) {
+            currentComponentIndex++;
+            updateComponentView();
+        }
+    }
+
+    function updateComponentView() {
+        document.getElementById('componentNumber').textContent =
+            'Component ' + (currentComponentIndex + 1) + ' of ' + components.length;
+
+        document.getElementById('prevComponent').disabled = currentComponentIndex === 0;
+        document.getElementById('nextComponent').disabled = currentComponentIndex === components.length - 1;
+
+        var container = document.getElementById('sliderContainer');
+        container.innerHTML = '';
+        container.appendChild(createComponent(currentComponentIndex));
+
+        updateSliderValues();
+    }
+
+    function updateSliderValues() {
+        var component = userComponents[currentComponentIndex];
+        var container = document.querySelector('.component-container');
+
+        container.querySelector('[data-control="freq"]').value = component.freq;
+        container.querySelector('[data-control="amp"]').value = component.amp;
+        container.querySelector('[data-control="phase"]').value = component.phase;
+
+        var displays = container.getElementsByClassName('value-display');
+        for (var i = 0; i < displays.length; i++) {
+            var display = displays[i];
+            var control = display.getAttribute('data-for');
+            display.textContent = component[control].toFixed(2);
+        }
+    }
+
+    function createComponent(index) {
+        var div = document.createElement('div');
+        div.className = 'component-container';
+
+        var title = document.createElement('div');
+        title.textContent = 'Component ' + (index + 1);
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '10px';
+        div.appendChild(title);
+
+        var controls = [
+            {name: 'freq', label: 'Frequency', max: 10, step: 0.1},
+            {name: 'amp', label: 'Amplitude', max: 1, step: 0.01},
+            {name: 'phase', label: 'Phase', max: 1, step: 0.01}
+        ];
+
+        for (var i = 0; i < controls.length; i++) {
+            var control = controls[i];
+            var container = document.createElement('div');
+            container.className = 'slider-container';
+
+            var row = document.createElement('div');
+            row.className = 'slider-row';
+
+            var label = document.createElement('span');
+            label.className = 'slider-label';
+            label.textContent = control.label + ':';
+
+            var slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'slider';
+            slider.min = 0;
+            slider.max = control.max;
+            slider.step = control.step;
+            slider.value = userComponents[index][control.name];
+            slider.setAttribute('data-control', control.name);
+
+            var value = document.createElement('span');
+            value.className = 'value-display';
+            value.setAttribute('data-for', control.name);
+            value.textContent = userComponents[index][control.name].toFixed(2);
+
+            slider.onchange = createSliderHandler(index, control.name, value);
+            slider.oninput = createSliderHandler(index, control.name, value);
+
+            row.appendChild(label);
+            row.appendChild(slider);
+            row.appendChild(value);
+            container.appendChild(row);
+            div.appendChild(container);
+        }
+
+        return div;
+    }
+
+    function createSliderHandler(index, controlName, valueDisplay) {
+        return function() {
+            var newValue = parseFloat(this.value);
+            valueDisplay.textContent = newValue.toFixed(2);
+            userComponents[index][controlName] = newValue;
+            lastModifiedHarmonic = index;
+            drawAttempt();
+        };
+    }
+
+    function drawGridLines(canvas, ctx) {
+        if (!showGrid) return;
+
+        var rect = canvas.getBoundingClientRect();
+        var cycleWidth = rect.width / numCycles;
+
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+
+        for (var i = 0; i <= numCycles; i++) {
+            var x = i * cycleWidth;
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, rect.height);
+            ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
+    }
+
+    function drawWaveform(canvas, comps, isTarget) {
+        var ctx = setupCanvas(canvas);
+        var rect = canvas.getBoundingClientRect();
+
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawGridLines(canvas, ctx);
+
+        // Draw center line
+        ctx.strokeStyle = '#999';
+        ctx.beginPath();
+        ctx.moveTo(0, rect.height/2);
+        ctx.lineTo(rect.width, rect.height/2);
+        ctx.stroke();
+
+        // Calculate points
+        var points = [];
+        for (var x = 0; x < rect.width; x++) {
+            points[x] = 0;
+        }
+
+        for (var i = 0; i < comps.length; i++) {
+            var comp = comps[i];
+            if (comp.freq === 0) continue;
+
+            for (var x = 0; x < rect.width; x++) {
+                var t = x * (Math.PI * 2 * numCycles / rect.width);
+                points[x] += comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
+            }
+        }
+
+        // Find max amplitude
+        var maxAmp = 1;
+        for (var i = 0; i < points.length; i++) {
+            maxAmp = Math.max(maxAmp, Math.abs(points[i]));
+        }
+
+        var scale = (rect.height/2 - 20) / maxAmp;
+
+        // Draw waveform
+        ctx.strokeStyle = isTarget ? 'blue' : 'red';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        for (var x = 0; x < points.length; x++) {
+            var scaledY = points[x] * scale + rect.height/2;
+            if (x === 0) {
+                ctx.moveTo(x, scaledY);
+            } else {
+                ctx.lineTo(x, scaledY);
+            }
+        }
+        ctx.stroke();
+    }
+
+    function drawSingleHarmonic(canvas, component) {
+        if (component.freq === 0) return;
+
+        var ctx = canvas.getContext('2d');
+        var rect = canvas.getBoundingClientRect();
+        var points = [];
+
+        for (var x = 0; x < rect.width; x++) {
+            var t = x * (Math.PI * 2 * numCycles / rect.width);
+            points[x] = component.amp * Math.sin(component.freq * t + component.phase * Math.PI * 2);
+        }
+
+        var maxAmp = 1;
+        for (var i = 0; i < points.length; i++) {
+            maxAmp = Math.max(maxAmp, Math.abs(points[i]));
+        }
+
+        var scale = (rect.height/2 - 20) / maxAmp;
+
+        ctx.strokeStyle = '#888';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+
+        for (var x = 0; x < points.length; x++) {
+            var scaledY = points[x] * scale + rect.height/2;
+            if (x === 0) {
+                ctx.moveTo(x, scaledY);
+            } else {
+                ctx.lineTo(x, scaledY);
+            }
+        }
+        ctx.stroke();
+    }
+
+    function drawAttempt() {
+        var canvas = document.getElementById('attemptCanvas');
+        drawWaveform(canvas, userComponents, false);
+
+        if (lastModifiedHarmonic !== null) {
+            drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
+        }
+    }
+
+    function redrawAll() {
+        drawWaveform(document.getElementById('targetCanvas'), components, true);
+        drawAttempt();
+    }
+
+    // Initialize everything
+    function init() {
+        initializeComponents();
+
+        document.getElementById('cyclesSlider').onchange = updateCycles;
+        document.getElementById('cyclesSlider').oninput = updateCycles;
+        document.getElementById('showGridLines').onchange = updateGrid;
+        document.getElementById('prevComponent').onclick = navigatePrev;
+        document.getElementById('nextComponent').onclick = navigateNext;
+
+        updateComponentView();
+        redrawAll();
+
+        // Handle window resize
+        var resizeTimer = null;
+        window.onresize = function() {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(redrawAll, 250);
+        };
+    }
+
+    // Start the application
+    init();
+</script>
+<div>{{type::frequencies}}</div>
