@@ -585,7 +585,7 @@
     }
 
     function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
-        const duration = 300; // Animation duration in milliseconds
+        const duration = 2000; // Animation duration in milliseconds
         const fps = 60;
         const frames = Math.floor(duration / (1000 / fps));
         let currentFrame = 0;
@@ -647,8 +647,7 @@
             var tempComponents = [...userComponents];
             tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
             scheduleMorphicDraw(canvas, tempComponents, userComponents, 'red', ctx);
-            console.log('drawAttempt: here we should schedule a morphic drawing');
-            drawWaveform(canvas, userComponents, 'red', ctx);
+
         }
         else {
             // When no component is being modified, draw all components in red
