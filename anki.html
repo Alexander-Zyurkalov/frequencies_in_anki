@@ -279,10 +279,12 @@
         var rect = canvas.getBoundingClientRect();
         var cycleWidth = rect.width / numCycles;
 
+        // Set initial grid style
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
 
+        // Draw vertical cycle lines
+        ctx.setLineDash([5, 5]);
         for (var i = 0; i <= numCycles; i++) {
             var x = i * cycleWidth;
             ctx.beginPath();
@@ -291,6 +293,22 @@
             ctx.stroke();
         }
 
+        // Draw horizontal amplitude lines
+        // The canvas height represents amplitudes from -1 to 1
+        // So we'll draw lines at each 0.1 interval
+        var canvasHeight = rect.height;
+        var centerY = canvasHeight / 2;
+        var stepSize = (canvasHeight-20) / 20; // 20 steps for -1 to 1 in 0.1 increments
+
+        for (var i = -10; i <= 10; i++) {
+            var y = centerY + (i * stepSize);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(rect.width, y);
+            ctx.stroke();
+        }
+
+        // Reset dash setting
         ctx.setLineDash([]);
     }
 
