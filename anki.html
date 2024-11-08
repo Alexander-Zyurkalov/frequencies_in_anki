@@ -417,35 +417,6 @@
         ctx.stroke();
     }
 
-    function drawSingleHarmonic(canvas, component) {
-        if (component.freq === 0) return;
-
-        var ctx = canvas.getContext('2d');
-        var rect = canvas.getBoundingClientRect();
-        var points = [];
-
-        for (var x = 0; x < rect.width; x++) {
-            var t = x * (Math.PI * 2 * numCycles / rect.width);
-            points[x] = component.amp * Math.sin(component.freq * t + component.phase * Math.PI * 2);
-        }
-
-        var scale = (rect.height/2 - 20);
-
-        ctx.strokeStyle = '#888';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-
-        for (var x = 0; x < points.length; x++) {
-            var scaledY = points[x] * scale + rect.height/2;
-            if (x === 0) {
-                ctx.moveTo(x, scaledY);
-            } else {
-                ctx.lineTo(x, scaledY);
-            }
-        }
-        ctx.stroke();
-    }
-
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         setupCanvas(canvas);
