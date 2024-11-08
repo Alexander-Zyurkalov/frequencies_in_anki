@@ -73,26 +73,15 @@
     }
 
     function startQueueProcessing() {
-        let index = 0;
         queueProcessingInterval = setInterval(() => {
-            if (index < modificationQueue.length) {
-                drawAttempt()
-                drawPreviousState(modificationQueue[index]);
-                index++;
+            drawAttempt()
+            if (modificationQueue.length > 1) {
+                modificationQueue.shift();
             } else {
                 clearInterval(queueProcessingInterval);
-                modificationQueue = []; // Clear the queue
             }
         }, 200);
     }
-
-    function drawPreviousState(state) {
-        var canvas = document.getElementById('attemptCanvas');
-        var ctx = canvas.getContext('2d');
-        drawWaveform(canvas, state.components, 'red');
-    }
-
-
 
     function createFloatingIndicator() {
         const indicator = document.createElement('div');
@@ -420,7 +409,13 @@
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         setupCanvas(canvas);
-        drawWaveform(canvas, userComponents, 'gray');
+        if (modificationQueue.length > 0) {
+            drawWaveform(canvas, userComponents, 'gray');
+            drawWaveform(canvas, modificationQueue[0].components, 'red');
+        }
+        else {
+            drawWaveform(canvas, userComponents, 'red');
+        }
     }
 
     function redrawAll() {
