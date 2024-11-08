@@ -335,19 +335,8 @@
         ctx.setLineDash([]);
     }
 
-    function drawWaveform(canvas, comps, colour) {
-        var ctx = setupCanvas(canvas);
+    function drawWaveform(canvas, comps, colour, ctx) {
         var rect = canvas.getBoundingClientRect();
-
-        ctx.clearRect(0, 0, rect.width, rect.height);
-        drawGridLines(canvas, ctx);
-
-        // Draw center line
-        ctx.strokeStyle = '#999';
-        ctx.beginPath();
-        ctx.moveTo(0, rect.height/2);
-        ctx.lineTo(rect.width, rect.height/2);
-        ctx.stroke();
 
         // Calculate points
         var points = [];
@@ -415,6 +404,8 @@
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
+
+        // Clear and draw grid once
         var rect = canvas.getBoundingClientRect();
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
@@ -424,18 +415,23 @@
             var tempComponents = [...userComponents];
             var modifiedComponent = tempComponents[lastModifiedHarmonic];
             tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            drawWaveform(canvas, tempComponents, 'red');
+            drawWaveform(canvas, tempComponents, 'red', ctx);
 
             // Then draw the sum of all components in grey on top
-            drawWaveform(canvas, userComponents, '#888');
+            drawWaveform(canvas, userComponents, '#888', ctx);
         } else {
             // When no component is being modified, draw all components in red
-            drawWaveform(canvas, userComponents, 'red');
+            drawWaveform(canvas, userComponents, 'red', ctx);
         }
     }
-
     function redrawAll() {
-        drawWaveform(document.getElementById('targetCanvas'), components, 'blue');
+        var targetCanvas = document.getElementById('targetCanvas');
+        var ctx = setupCanvas(targetCanvas);
+        var rect = targetCanvas.getBoundingClientRect();
+
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawGridLines(targetCanvas, ctx);
+        drawWaveform(document.getElementById('targetCanvas'), components, 'blue', ctx);
         drawAttempt();
     }
 
