@@ -45,6 +45,7 @@
         lastModifiedHarmonic = index;
         drawAttempt();
         updateAnswerString();
+        showFloatingValue(newValue, slider, controlName);
     }
 
 
@@ -242,15 +243,13 @@
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
             modifyUserComponents(index, controlName, newValue);
-            showFloatingValue(newValue, slider, controlName);
         };
     }
 
     function createSliderHandler(index, controlName) {
         return function() {
             var newValue = parseFloat(this.value);
-            modifyUserComponents(index, controlName, newValue);
-            showFloatingValue(newValue, this, controlName);
+           modifyUserComponents(index, controlName, newValue);
         };
     }
 
