@@ -36,15 +36,18 @@
     var frequencyString = '{{frequencies}}';
     var components = [];
     var userComponents = [];
+    var prevUserComponents = [];
 
     var activeIndicator = null;
     var indicatorTimeout = null;
 
     function modifyUserComponents(index, property, value) {
+        prevUserComponents[index][property] = userComponents[index][property];
         userComponents[index][property] = value;
         lastModifiedHarmonic = index;
         drawAttempt();
         updateAnswerString();
+        showFloatingValue(value, this, property);
     }
 
 
@@ -90,13 +93,8 @@
 
     function initializeComponents() {
         var compStrings = frequencyString.split(',');
-        for (var i = 0; i < compStrings.length; i++) {
-            var parts = compStrings[i].trim().split(' ');
-            components.push({
-                freq: parseFloat(parts[0]),
-                amp: parseFloat(parts[1]),
-                phase: parseFloat(parts[2])
-            });
+
+        function makeComponentDefaultValues(i) {
             var userComponentDefaultValues = {
                 freq: 0,
                 amp: 0,
@@ -107,7 +105,18 @@
                 userComponentDefaultValues.amp = 1;
                 userComponentDefaultValues.phase = 0;
             }
-            userComponents.push(userComponentDefaultValues);
+            return userComponentDefaultValues;
+        }
+
+        for (var i = 0; i < compStrings.length; i++) {
+            var parts = compStrings[i].trim().split(' ');
+            components.push({
+                freq: parseFloat(parts[0]),
+                amp: parseFloat(parts[1]),
+                phase: parseFloat(parts[2])
+            });
+            userComponents.push(makeComponentDefaultValues(i));
+            prevUserComponents.push(makeComponentDefaultValues(i));
         }
     }
 
@@ -120,7 +129,7 @@
 
         var ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
-        return ctx;
+        ctx.clearRect(0, 0, rect.width, rect.height);
     }
 
     function updateCycles() {
@@ -242,7 +251,6 @@
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
             modifyUserComponents(index, controlName, newValue);
-            showFloatingValue(newValue, slider, controlName);
         };
     }
 
@@ -250,7 +258,6 @@
         return function() {
             var newValue = parseFloat(this.value);
             modifyUserComponents(index, controlName, newValue);
-            showFloatingValue(newValue, this, controlName);
         };
     }
 
@@ -315,10 +322,9 @@
     }
 
     function drawWaveform(canvas, comps, colour) {
-        var ctx = setupCanvas(canvas);
+        var ctx = canvas.getContext('2d');
         var rect = canvas.getBoundingClientRect();
 
-        ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
 
         // Draw center line
@@ -393,15 +399,15 @@
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
-        drawWaveform(canvas, userComponents, 'red');
-
-        if (lastModifiedHarmonic !== null) {
-            drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
-        }
+        setupCanvas(canvas);
+        drawWaveform(canvas, prevUserComponents, 'red');
+        drawWaveform(canvas, userComponents, 'gray');
     }
 
     function redrawAll() {
-        drawWaveform(document.getElementById('targetCanvas'), components, 'blue');
+        var canvas = document.getElementById('targetCanvas');
+        setupCanvas(canvas);
+        drawWaveform(canvas, components, 'blue');
         drawAttempt();
     }
 
