@@ -45,10 +45,13 @@
     var queueProcessingInterval = null;
 
     function modifyUserComponents(index, property, value) {
-        // Save the current state to the queue
+        // Save just the modified parameter to the queue
         modificationQueue.push({
-            components: JSON.parse(JSON.stringify(userComponents)),
-            lastModified: lastModifiedHarmonic
+            componentIndex: index,
+            property: property,
+            startValue: userComponents[index][property],
+            targetValue: value,
+            progress: 0
         });
 
         // Limit queue size to prevent memory issues
@@ -74,13 +77,36 @@
 
     function startQueueProcessing() {
         queueProcessingInterval = setInterval(() => {
-            drawAttempt()
-            if (modificationQueue.length > 1) {
-                modificationQueue.shift();
-            } else {
+            if (modificationQueue.length === 0) {
                 clearInterval(queueProcessingInterval);
+                return;
             }
-        }, 200);
+
+            // Process each modification in the queue
+            for (let i = modificationQueue.length - 1; i >= 0; i--) {
+                const mod = modificationQueue[i];
+                mod.progress += 0.1; // Increment progress by 10% each frame
+
+                if (mod.progress >= 1) {
+                    // We've reached the target value, remove this modification
+                    modificationQueue.splice(i, 1);
+                } else {
+                    // Interpolate between start and target values
+                    const currentValue = mod.startValue + (mod.targetValue - mod.startValue) * mod.progress;
+                    // Create a temporary copy of userComponents for animation
+                    const tempComponents = JSON.parse(JSON.stringify(userComponents));
+                    tempComponents[mod.componentIndex][mod.property] = currentValue;
+
+                    // Draw the intermediate state
+                    const canvas = document.getElementById('attemptCanvas');
+                    setupCanvas(canvas);
+                    drawWaveform(canvas, tempComponents, 'gray');
+                }
+            }
+
+            // Always draw the current state in red on top
+            drawWaveform(document.getElementById('attemptCanvas'), userComponents, 'red');
+        }, 50); // Run every 50ms for smooth animation
     }
 
     function createFloatingIndicator() {
@@ -407,15 +433,25 @@
     }
 
     function drawAttempt() {
-        var canvas = document.getElementById('attemptCanvas');
+        const canvas = document.getElementById('attemptCanvas');
         setupCanvas(canvas);
+
         if (modificationQueue.length > 0) {
-            drawWaveform(canvas, userComponents, 'gray');
-            drawWaveform(canvas, modificationQueue[0].components, 'red');
+            // Create a temporary copy of components for animation
+            const tempComponents = JSON.parse(JSON.stringify(userComponents));
+
+            // Apply all current modifications in the queue
+            modificationQueue.forEach(mod => {
+                tempComponents[mod.componentIndex][mod.property] =
+                    mod.startValue + (mod.targetValue - mod.startValue) * mod.progress;
+            });
+
+            // Draw the transitioning state in gray
+            drawWaveform(canvas, tempComponents, 'gray');
         }
-        else {
-            drawWaveform(canvas, userComponents, 'red');
-        }
+
+        // Always draw the current state in red
+        drawWaveform(canvas, userComponents, 'red');
     }
 
     function redrawAll() {
