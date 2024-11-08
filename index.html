@@ -576,6 +576,55 @@
         ctx.stroke();
     }
 
+    function interpolateComponents(start, end, progress) {
+        return start.map((comp, i) => ({
+            freq: comp.freq + (end[i].freq - comp.freq) * progress,
+            amp: comp.amp + (end[i].amp - comp.amp) * progress,
+            phase: comp.phase + (end[i].phase - comp.phase) * progress
+        }));
+    }
+
+    function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
+        const duration = 300; // Animation duration in milliseconds
+        const fps = 60;
+        const frames = Math.floor(duration / (1000 / fps));
+        let currentFrame = 0;
+
+        function animate() {
+            if (currentFrame >= frames) {
+                return;
+            }
+
+            // Calculate progress (using easing function for smoother animation)
+            const progress = easeInOutCubic(currentFrame / frames);
+
+            // Clear canvas and redraw grid
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            drawGridLines(canvas, ctx);
+
+            // Calculate interpolated components
+            const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
+
+            // Draw the interpolated waveform
+            drawWaveform(canvas, interpolatedComponents, color, ctx);
+
+            // Schedule next frame
+            currentFrame++;
+            setTimeout(animate, 1000 / fps);
+        }
+
+        // Easing function for smoother animation
+        function easeInOutCubic(t) {
+            return t < 0.5
+                ? 4 * t * t * t
+                : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        // Start animation
+        animate();
+    }
+
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
@@ -595,6 +644,9 @@
             // Then draw the sum of all components in grey on top
             drawWaveform(canvas, userComponents, '#888', ctx);
         } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
+            var tempComponents = [...userComponents];
+            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
+            scheduleMorphicDraw(canvas, tempComponents, userComponents, 'red', ctx);
             console.log('drawAttempt: here we should schedule a morphic drawing');
             drawWaveform(canvas, userComponents, 'red', ctx);
         }
