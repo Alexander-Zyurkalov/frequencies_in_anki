@@ -282,6 +282,11 @@
                     lastModifiedHarmonic = null;
                     drawAttempt();
                 }
+
+            }
+            // Prevent any default browser handling
+            if (event.cancelable) {
+                event.preventDefault();
             }
         };
     }
