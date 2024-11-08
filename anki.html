@@ -67,12 +67,6 @@
         drawAttempt();
         updateAnswerString();
         showFloatingValue(value, this, property);
-
-        // Start or reset the queue processing
-        if (queueProcessingInterval) {
-            clearInterval(queueProcessingInterval);
-        }
-        startQueueProcessing();
     }
 
     function startQueueProcessing() {
@@ -314,14 +308,30 @@
             var currentValue = parseFloat(slider.value);
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
+
             modifyUserComponents(index, controlName, newValue);
+
+            // Start animation immediately for button clicks
+            if (queueProcessingInterval) {
+                clearInterval(queueProcessingInterval);
+            }
+            startQueueProcessing();
         };
     }
 
     function createSliderHandler(index, controlName) {
-        return function() {
+        return function(event) {
             var newValue = parseFloat(this.value);
+
             modifyUserComponents(index, controlName, newValue);
+
+            if (event.type === 'change') {
+                // Start animation only when slider is released
+                if (queueProcessingInterval) {
+                    clearInterval(queueProcessingInterval);
+                }
+                startQueueProcessing();
+            }
         };
     }
 
@@ -447,11 +457,13 @@
             });
 
             // Draw the transitioning state in gray
-            drawWaveform(canvas, tempComponents, 'gray');
+            drawWaveform(canvas, tempComponents, 'red');
+            drawWaveform(canvas, userComponents, 'gray');
+        } else {
+            drawWaveform(canvas, userComponents, 'red');
         }
 
-        // Always draw the current state in red
-        drawWaveform(canvas, userComponents, 'red');
+
     }
 
     function redrawAll() {
