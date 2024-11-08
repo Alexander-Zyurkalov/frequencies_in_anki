@@ -215,9 +215,9 @@
             slider.step = control.step;
             slider.value = userComponents[index][control.name];
             slider.setAttribute('data-control', control.name);
-            slider.addEventListener('mousedown', createSliderHandler(index, control.name));
-            slider.addEventListener('touchstart', createSliderHandler(index, control.name));
-            slider.addEventListener('input', createSliderHandler(index, control.name));
+            slider.addEventListener('mousedown', createSliderHandler(index, control.name), {passive: true});
+            slider.addEventListener('touchstart', createSliderHandler(index, control.name), {passive: true});
+            slider.addEventListener('input', createSliderHandler(index, control.name), {passive: true});
 
             // Plus button (replaces value display)
             var plusBtn = document.createElement('button');
