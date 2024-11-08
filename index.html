@@ -448,7 +448,6 @@
             setTimeout(() => {
                 activeInteractions--;
                 if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
                     drawAttempt();
                 }
             }, 500);
@@ -461,8 +460,6 @@
 
             if (event.type === 'mousedown' || event.type === 'touchstart') {
                 activeInteractions++;
-                console.log("index = " + index + ", controlName = " + controlName +
-                    ", event.type = " + event.type + ", activeInteractions = " + activeInteractions);
                 lastModifiedHarmonic = index;
             }
 
@@ -475,12 +472,7 @@
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
-                console.log('decrementActiveInteractions: ' + activeInteractions +
-                ", event.type = " + event.type +
-                    " index = " + index + ", controlName = " + controlName);
                 if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
-                    console.log('draw attempt');
                     drawAttempt();
                 }
             }
@@ -593,7 +585,8 @@
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
 
-        if (lastModifiedHarmonic !== null) {
+        if (lastModifiedHarmonic !== null && activeInteractions > 0) {
+            console.log('drawAttempt: activeInteractions > 0, drawing modified component');
             // First, draw the sum of all components except the modified one in red
             var tempComponents = [...userComponents];
             tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
@@ -601,8 +594,13 @@
 
             // Then draw the sum of all components in grey on top
             drawWaveform(canvas, userComponents, '#888', ctx);
-        } else {
+        } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
+            console.log('drawAttempt: here we should schedule a morphic drawing');
+            drawWaveform(canvas, userComponents, 'red', ctx);
+        }
+        else {
             // When no component is being modified, draw all components in red
+            console.log('drawAttempt: no component is being modified, drawing all components in red');
             drawWaveform(canvas, userComponents, 'red', ctx);
         }
     }
