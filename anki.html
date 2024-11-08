@@ -41,14 +41,57 @@
     var activeIndicator = null;
     var indicatorTimeout = null;
 
+    var modificationQueue = [];
+    var queueProcessingInterval = null;
+
     function modifyUserComponents(index, property, value) {
-        prevUserComponents[index][property] = userComponents[index][property];
+        // Save the current state to the queue
+        modificationQueue.push({
+            components: JSON.parse(JSON.stringify(userComponents)),
+            lastModified: lastModifiedHarmonic
+        });
+
+        // Limit queue size to prevent memory issues
+        if (modificationQueue.length > 10) {
+            modificationQueue.shift();
+        }
+
+        // Update current values
         userComponents[index][property] = value;
         lastModifiedHarmonic = index;
+
+        // Draw current state
         drawAttempt();
         updateAnswerString();
         showFloatingValue(value, this, property);
+
+        // Start or reset the queue processing
+        if (queueProcessingInterval) {
+            clearInterval(queueProcessingInterval);
+        }
+        startQueueProcessing();
     }
+
+    function startQueueProcessing() {
+        let index = 0;
+        queueProcessingInterval = setInterval(() => {
+            if (index < modificationQueue.length) {
+                drawAttempt()
+                drawPreviousState(modificationQueue[index]);
+                index++;
+            } else {
+                clearInterval(queueProcessingInterval);
+                modificationQueue = []; // Clear the queue
+            }
+        }, 200);
+    }
+
+    function drawPreviousState(state) {
+        var canvas = document.getElementById('attemptCanvas');
+        var ctx = canvas.getContext('2d');
+        drawWaveform(canvas, state.components, 'red');
+    }
+
 
 
     function createFloatingIndicator() {
@@ -153,6 +196,12 @@
     }
 
     function updateComponentView() {
+        // Clear any ongoing queue processing
+        if (queueProcessingInterval) {
+            clearInterval(queueProcessingInterval);
+            modificationQueue = [];
+        }
+
         document.getElementById('componentNumber').textContent =
             'Component ' + (currentComponentIndex + 1) + ' of ' + components.length;
 
@@ -400,7 +449,6 @@
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         setupCanvas(canvas);
-        drawWaveform(canvas, prevUserComponents, 'red');
         drawWaveform(canvas, userComponents, 'gray');
     }
 
