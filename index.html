@@ -228,6 +228,7 @@
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
+    var lastModifiedFields  = [];
     var numCycles = 2;
 
     var userComponents = [];
@@ -303,6 +304,13 @@
                 userComponentDefaultValues.phase = 0;
             }
             userComponents.push(userComponentDefaultValues);
+            lastModifiedFields.push(
+                {
+                    freq: userComponentDefaultValues.freq,
+                    amp: userComponentDefaultValues.amp,
+                    phase: userComponentDefaultValues.phase
+                }
+            );
         }
     }
 
@@ -472,8 +480,15 @@
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
+                lastModifiedFields[index][controlName] = 0;
+                console.log('Touch ended');
+                console.log('lasModifiedFields[' + index + "]" + JSON.stringify(lastModifiedFields[index]));
                 if (activeInteractions === 0) {
                     drawAttempt();
+                    lastModifiedFields[index].freq = userComponents[index].freq;
+                    lastModifiedFields[index].amp = userComponents[index].amp;
+                    lastModifiedFields[index].phase = userComponents[index].phase;
+                    console.log('afterDrawAttempt: lasModifiedFields[' + index + "]" + JSON.stringify(lastModifiedFields[index]));
                 }
             }
         };
@@ -577,51 +592,73 @@
     }
 
     function interpolateComponents(start, end, progress) {
-        return start.map((comp, i) => ({
-            freq: comp.freq + (end[i].freq - comp.freq) * progress,
-            amp: comp.amp + (end[i].amp - comp.amp) * progress,
-            phase: comp.phase + (end[i].phase - comp.phase) * progress
-        }));
+        // Ensure progress is exactly between 0 and 1
+        const clampedProgress = Math.max(0, Math.min(1, progress));
+
+        return start.map((comp, i) => {
+            // Handle frequency interpolation with extra precision
+            const freqDiff = end[i].freq - comp.freq;
+            const ampDiff = end[i].amp - comp.amp;
+            const phaseDiff = end[i].phase - comp.phase;
+
+            return {
+                freq: comp.freq + freqDiff * clampedProgress,
+                amp: comp.amp + ampDiff * clampedProgress,
+                phase: comp.phase + phaseDiff * clampedProgress
+            };
+        });
     }
 
     function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
-        const duration = 2000; // Animation duration in milliseconds
-        const fps = 60;
-        const frames = Math.floor(duration / (1000 / fps));
-        let currentFrame = 0;
+        const duration = 1000; // Animation duration in milliseconds
+        const stepTime = 16; //
+        const steps = Math.floor(duration / stepTime);
+        let currentStep = 0;
 
         function animate() {
-            if (currentFrame >= frames) {
+            // Ensure we complete the animation
+            if (currentStep > steps) {
+                // Draw final state
+                drawWaveform(canvas, endComponents, color, ctx);
                 return;
             }
 
-            // Calculate progress (using easing function for smoother animation)
-            const progress = easeInOutCubic(currentFrame / frames);
+            // Calculate raw progress (0 to 1)
+            const rawProgress = currentStep / steps;
+
+            // Apply easing function
+            const progress = easeInOutCubic(rawProgress);
 
             // Clear canvas and redraw grid
             const rect = canvas.getBoundingClientRect();
             ctx.clearRect(0, 0, rect.width, rect.height);
             drawGridLines(canvas, ctx);
 
-            // Calculate interpolated components
+            // Calculate and draw interpolated state
             const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
 
-            // Draw the interpolated waveform
             drawWaveform(canvas, interpolatedComponents, color, ctx);
 
             // Schedule next frame
-            currentFrame++;
-            setTimeout(animate, 1000 / fps);
+            currentStep++;
+            setTimeout(animate, stepTime);
         }
 
-        // Easing function for smoother animation
+        // Modified easing function with better precision for small values
         function easeInOutCubic(t) {
-            return t < 0.5
-                ? 4 * t * t * t
-                : 1 - Math.pow(-2 * t + 2, 3) / 2;
+            // Ensure t is between 0 and 1
+            t = Math.max(0, Math.min(1, t));
+
+            // Enhanced precision cubic easing
+            if (t < 0.5) {
+                return 4 * t * t * t;
+            } else {
+                const t2 = -2 * t + 2;
+                return 1 - (t2 * t2 * t2) / 2;
+            }
         }
 
-        // Start animation
+        // Start animation immediately
         animate();
     }
 
@@ -642,11 +679,14 @@
             drawWaveform(canvas, tempComponents, 'red', ctx);
 
             // Then draw the sum of all components in grey on top
-            drawWaveform(canvas, userComponents, '#888', ctx);
+            drawWaveform(canvas, userComponents, '#d3d2d2', ctx);
         } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
-            var tempComponents = [...userComponents];
-            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            scheduleMorphicDraw(canvas, tempComponents, userComponents, 'red', ctx);
+            var tempComponents = JSON.parse(JSON.stringify(userComponents));
+            tempComponents[lastModifiedHarmonic].freq = lastModifiedFields[lastModifiedHarmonic].freq;
+            tempComponents[lastModifiedHarmonic].amp = lastModifiedFields[lastModifiedHarmonic].amp;
+            tempComponents[lastModifiedHarmonic].phase = lastModifiedFields[lastModifiedHarmonic].phase;
+            var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
+            scheduleMorphicDraw(canvas, tempComponents, tempUserComponents, 'red', ctx);
 
         }
         else {
