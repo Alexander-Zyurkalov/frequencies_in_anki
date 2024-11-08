@@ -394,7 +394,6 @@
         if (lastModifiedHarmonic !== null) {
             // First draw the sum of all components except the modified one in red
             var tempComponents = [...userComponents];
-            var modifiedComponent = tempComponents[lastModifiedHarmonic];
             tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
             drawWaveform(canvas, tempComponents, 'red', ctx);
 
