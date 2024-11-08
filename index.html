@@ -413,6 +413,8 @@
             slider.addEventListener('mousedown', createSliderHandler(index, control.name));
             slider.addEventListener('touchstart', createSliderHandler(index, control.name));
             slider.addEventListener('input', createSliderHandler(index, control.name));
+            slider.addEventListener('mouseup', createSliderTouchEndHandler(index, control.name));
+            slider.addEventListener('touchend', createSliderTouchEndHandler(index, control.name));
 
             // Plus button (replaces value display)
             var plusBtn = document.createElement('button');
@@ -454,27 +456,34 @@
     }
 
     function createSliderHandler(index, controlName) {
-        const decrementActiveInteractions = () => {
-            if (activeInteractions > 0) {
-                activeInteractions--;
-                if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
-                    drawAttempt();
-                }
-            }
-        }
-        document.addEventListener('mouseup', decrementActiveInteractions);
-        document.addEventListener('touchend', decrementActiveInteractions);
-
         return function(event) {
             var newValue = parseFloat(this.value);
 
             if (event.type === 'mousedown' || event.type === 'touchstart') {
                 activeInteractions++;
+                console.log("index = " + index + ", controlName = " + controlName +
+                    ", event.type = " + event.type + ", activeInteractions = " + activeInteractions);
                 lastModifiedHarmonic = index;
             }
 
             modifyUserComponents(index, controlName, newValue);
+        };
+    }
+
+
+    function createSliderTouchEndHandler(index, controlName) {
+        return function(event) {
+            if (activeInteractions > 0) {
+                activeInteractions--;
+                console.log('decrementActiveInteractions: ' + activeInteractions +
+                ", event.type = " + event.type +
+                    " index = " + index + ", controlName = " + controlName);
+                if (activeInteractions === 0) {
+                    lastModifiedHarmonic = null;
+                    console.log('draw attempt');
+                    drawAttempt();
+                }
+            }
         };
     }
 

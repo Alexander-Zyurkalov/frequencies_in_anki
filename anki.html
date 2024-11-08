@@ -218,6 +218,8 @@
             slider.addEventListener('mousedown', createSliderHandler(index, control.name), {passive: true});
             slider.addEventListener('touchstart', createSliderHandler(index, control.name), {passive: true});
             slider.addEventListener('input', createSliderHandler(index, control.name), {passive: true});
+            slider.addEventListener('mouseup',  createSliderTouchEndHandler(index, control.name));
+            slider.addEventListener('touchend', createSliderTouchEndHandler(index, control.name));
 
             // Plus button (replaces value display)
             var plusBtn = document.createElement('button');
@@ -259,17 +261,6 @@
     }
 
     function createSliderHandler(index, controlName) {
-        const decrementActiveInteractions = () => {
-            if (activeInteractions > 0) {
-                activeInteractions--;
-                if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
-                    drawAttempt();
-                }
-            }
-        }
-        document.addEventListener('mouseup', decrementActiveInteractions);
-        document.addEventListener('touchend', decrementActiveInteractions);
 
         return function(event) {
             var newValue = parseFloat(this.value);
@@ -282,6 +273,19 @@
             modifyUserComponents(index, controlName, newValue);
         };
     }
+
+    function createSliderTouchEndHandler(index, controlName) {
+        return function(event) {
+            if (activeInteractions > 0) {
+                activeInteractions--;
+                if (activeInteractions === 0) {
+                    lastModifiedHarmonic = null;
+                    drawAttempt();
+                }
+            }
+        };
+    }
+
 
     function updateAnswerString() {
         var answer = userComponents.map(comp => {
