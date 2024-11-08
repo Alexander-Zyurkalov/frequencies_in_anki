@@ -1,300 +1,671 @@
 <!DOCTYPE html>
 <html>
-<body>
-<div style="width: 800px; margin: 0 auto;">
-    <!-- Fixed header containing waveforms -->
-    <div style="position: sticky; top: 0; background: white; padding: 10px 0; z-index: 1000;">
-        <div>
-            <h3>Target Waveform</h3>
-            <div style="margin-bottom: 10px;">
-                <label>Cycles of fundamental: <span id="cyclesValue">2.0</span></label>
-                <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" style="width: 300px;">
-                <div style="margin-top: 5px;">
-                    <input type="checkbox" id="showGridLines" checked>
-                    <label for="showGridLines">Show cycle grid lines</label>
-                </div>
-            </div>
-            <canvas id="targetCanvas" width="800" height="200" style="border:1px solid #ddd;"></canvas>
-        </div>
+<head>
+    <style>
+        .card {
+            font-family: arial;
+            font-size: 20px;
+            text-align: center;
+            color: black;
+            background-color: white;
+        }
+        /* Base container styles */
+        .main-container {
+            width: 95%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+        }
 
-        <div style="margin-top: 20px;">
-            <h3>Your Attempt</h3>
-            <canvas id="attemptCanvas" width="800" height="200" style="border:1px solid #ddd;"></canvas>
+        /* Canvas container */
+        .canvas-container {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: auto !important;
+            border: 1px solid #ddd;
+        }
+
+        /* Controls styles */
+        .controls-container {
+            margin-bottom: 15px;
+        }
+
+        .cycles-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Component container */
+        .component-container {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        /* Slider container */
+        .slider-container {
+            margin-bottom: 12px;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .slider-label {
+            min-width: 80px;
+            flex: 0 0 auto;
+        }
+
+        .slider {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .value-display {
+            min-width: 45px;
+            text-align: right;
+        }
+
+        /* Mobile-specific adjustments */
+        @media (max-width: 600px) {
+            .main-container {
+                width: 98%;
+                padding: 5px;
+            }
+
+            .component-container {
+                padding: 10px;
+            }
+
+            .slider-row {
+                gap: 5px;
+            }
+
+            .slider-label {
+                min-width: 70px;
+                font-size: 0.9em;
+            }
+
+            .value-display {
+                min-width: 40px;
+                font-size: 0.9em;
+            }
+
+            h3 {
+                font-size: 1.1em;
+                margin: 10px 0;
+            }
+        }
+
+        /* Navigation controls */
+        .navigation-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .nav-button {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f5f5f5;
+            cursor: pointer;
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #componentNumber {
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: nowrap;
+        }
+
+        .adjust-button {
+            padding: 2px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #f5f5f5;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .answer-container {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .copy-button {
+            padding: 5px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .slider-label {
+            min-width: 30px;  /* Reduced from 80px */
+        }
+
+        .floating-indicator {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 1000;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="canvas-container">
+        <div class="controls-container">
+            <div class="cycles-control">
+                <label>Cycles: <span id="cyclesValue">2.0</span></label>
+                <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" class="slider">
+            </div>
         </div>
+        <canvas id="targetCanvas" width="800" height="200"></canvas>
     </div>
 
-    <!-- Scrollable container for sliders -->
-    <div style="margin-top: 20px; max-height: calc(100vh - 600px); overflow-y: auto; padding: 10px;">
-        <div id="sliderContainer"></div>
+    <div class="canvas-container">
+        <canvas id="attemptCanvas" width="800" height="200"></canvas>
+    </div>
+
+    <div class="navigation-controls">
+        <button id="prevComponent" class="nav-button">&lt; Previous</button>
+        <span id="componentNumber">Component 1 of X</span>
+        <button id="nextComponent" class="nav-button">Next &gt;</button>
+    </div>
+
+    <div id="sliderContainer"></div>
+
+    <div class="answer-container">
+        <span id="answerString"></span>
+        <button id="copyButton" class="copy-button">Copy</button>
     </div>
 </div>
 
 <script>
-    // For testing - in Anki this would be replaced with {{frequencies}}
-    const frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
+    // Parse frequency string
+    var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
+    var components = [];
+    var currentComponentIndex = 0;
+    var lastModifiedHarmonic = null;
+    var numCycles = 2;
 
-    // Parse frequency string into array of {freq, amplitude, phase} objects
-    const components = frequencyString.split(',').map(comp => {
-        const [freq, amp, phase] = comp.trim().split(' ').map(Number);
-        return { freq, amp, phase };
-    });
+    var userComponents = [];
 
-    let lastModifiedHarmonic = null;
-    const userComponents = components.map(comp => ({
-        freq: 0,
-        amp: 0,
-        phase: 0
-    }));
+    var activeIndicator = null;
+    var indicatorTimeout = null;
+    var activeInteractions = 0;
 
-    let numCycles = 2;
-    let showGrid = true;
-
-    const cyclesSlider = document.getElementById('cyclesSlider');
-    const cyclesValue = document.getElementById('cyclesValue');
-    const gridCheckbox = document.getElementById('showGridLines');
-
-    gridCheckbox.onchange = () => {
-        showGrid = gridCheckbox.checked;
-        redrawAll();
-    };
-
-    cyclesSlider.oninput = () => {
-        numCycles = parseFloat(cyclesSlider.value);
-        cyclesValue.textContent = numCycles.toFixed(1);
-        redrawAll();
-    };
-
-    function redrawAll() {
-        const targetCanvas = document.getElementById('targetCanvas');
-        const targetCtx = targetCanvas.getContext('2d');
-        targetCtx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
-        drawWaveform(targetCanvas, components, true);
+    function modifyUserComponents(index, property, value) {
+        userComponents[index][property] = value;
         drawAttempt();
+        updateAnswerString();
+        showFloatingValue(value, null, property);
     }
 
-    function createSliders() {
-        const container = document.getElementById('sliderContainer');
-        container.innerHTML = ''; // Clear existing sliders
-
-        components.forEach((comp, i) => {
-            const harmonicNum = i + 1;
-            const div = document.createElement('div');
-            div.style.marginBottom = '20px';
-            div.style.padding = '10px';
-            div.style.border = '1px solid #ddd';
-            div.style.borderRadius = '5px';
-
-            // Component label
-            const label = document.createElement('div');
-            label.textContent = `Component ${harmonicNum}:`;
-            label.style.marginBottom = '10px';
-            label.style.fontWeight = 'bold';
-            div.appendChild(label);
-
-            // Frequency slider
-            const freqDiv = document.createElement('div');
-            freqDiv.style.marginBottom = '10px';
-
-            const freqLabel = document.createElement('label');
-            freqLabel.textContent = 'Frequency: ';
-
-            const freqValue = document.createElement('span');
-            freqValue.id = `freqValue${harmonicNum}`;
-            freqValue.textContent = '0.00';
-
-            const freqSlider = document.createElement('input');
-            freqSlider.type = 'range';
-            freqSlider.min = 0;
-            freqSlider.max = 10;
-            freqSlider.step = 0.1;
-            freqSlider.value = 0;
-            freqSlider.style.width = '300px';
-
-            freqDiv.appendChild(freqLabel);
-            freqDiv.appendChild(freqSlider);
-            freqDiv.appendChild(freqValue);
-
-            // Amplitude slider
-            const ampDiv = document.createElement('div');
-            ampDiv.style.marginBottom = '10px';
-
-            const ampLabel = document.createElement('label');
-            ampLabel.textContent = 'Amplitude: ';
-
-            const ampValue = document.createElement('span');
-            ampValue.id = `ampValue${harmonicNum}`;
-            ampValue.textContent = '0.00';
-
-            const ampSlider = document.createElement('input');
-            ampSlider.type = 'range';
-            ampSlider.min = 0;
-            ampSlider.max = 1;
-            ampSlider.step = 0.01;
-            ampSlider.value = 0;
-            ampSlider.style.width = '300px';
-
-            ampDiv.appendChild(ampLabel);
-            ampDiv.appendChild(ampSlider);
-            ampDiv.appendChild(ampValue);
-
-            // Phase slider
-            const phaseDiv = document.createElement('div');
-
-            const phaseLabel = document.createElement('label');
-            phaseLabel.textContent = 'Phase: ';
-
-            const phaseValue = document.createElement('span');
-            phaseValue.id = `phaseValue${harmonicNum}`;
-            phaseValue.textContent = '0.00';
-
-            const phaseSlider = document.createElement('input');
-            phaseSlider.type = 'range';
-            phaseSlider.min = 0;
-            phaseSlider.max = 1;
-            phaseSlider.step = 0.01;
-            phaseSlider.value = 0;
-            phaseSlider.style.width = '300px';
-
-            phaseDiv.appendChild(phaseLabel);
-            phaseDiv.appendChild(phaseSlider);
-            phaseDiv.appendChild(phaseValue);
-
-            // Add event listeners
-            freqSlider.oninput = () => {
-                const newValue = parseFloat(freqSlider.value);
-                freqValue.textContent = newValue.toFixed(2);
-                userComponents[i].freq = newValue;
-                lastModifiedHarmonic = i;
-                drawAttempt();
-            };
-
-            ampSlider.oninput = () => {
-                const newValue = parseFloat(ampSlider.value);
-                ampValue.textContent = newValue.toFixed(2);
-                userComponents[i].amp = newValue;
-                lastModifiedHarmonic = i;
-                drawAttempt();
-            };
-
-            phaseSlider.oninput = () => {
-                const newValue = parseFloat(phaseSlider.value);
-                phaseValue.textContent = newValue.toFixed(2);
-                userComponents[i].phase = newValue;
-                lastModifiedHarmonic = i;
-                drawAttempt();
-            };
-
-            div.appendChild(freqDiv);
-            div.appendChild(ampDiv);
-            div.appendChild(phaseDiv);
-            container.appendChild(div);
-        });
+    function createFloatingIndicator() {
+        const indicator = document.createElement('div');
+        indicator.className = 'floating-indicator';
+        return indicator;
     }
 
-    function drawGridLines(canvas) {
-        if (!showGrid) return;
+    function showFloatingValue(value, slider, type) {
+        // Remove any existing indicator
+        if (activeIndicator) {
+            activeIndicator.remove();
+        }
+        clearTimeout(indicatorTimeout);
 
-        const ctx = canvas.getContext('2d');
-        const cycleWidth = canvas.width / numCycles;
+        // Create and position new indicator
+        const indicator = createFloatingIndicator();
+        const answerContainer = document.querySelector('.navigation-controls');
+        answerContainer.appendChild(indicator);
 
+        // Format the value based on type
+        let displayValue;
+        if (type === 'freq') {
+            displayValue = value.toFixed(1) + '×';
+        } else if (type === 'amp') {
+            displayValue = value.toFixed(2);
+        } else { // phase
+            displayValue = (value).toFixed(2);
+        }
+
+        indicator.textContent = displayValue;
+        indicator.style.opacity = '1';
+
+        activeIndicator = indicator;
+
+        // Hide after 1.5 seconds
+        indicatorTimeout = setTimeout(() => {
+            indicator.style.opacity = '0';
+            setTimeout(() => indicator.remove(), 200);
+        }, 1500);
+    }
+
+    function initializeComponents() {
+        var compStrings = frequencyString.split(',');
+        for (var i = 0; i < compStrings.length; i++) {
+            var parts = compStrings[i].trim().split(' ');
+            components.push({
+                freq: parseFloat(parts[0]),
+                amp: parseFloat(parts[1]),
+                phase: parseFloat(parts[2])
+            });
+            var userComponentDefaultValues = {
+                freq: 0,
+                amp: 0,
+                phase: 0
+            };
+            if (i === 0) {
+                userComponentDefaultValues.freq = 1;
+                userComponentDefaultValues.amp = 1;
+                userComponentDefaultValues.phase = 0;
+            }
+            userComponents.push(userComponentDefaultValues);
+        }
+    }
+
+    function setupCanvas(canvas) {
+        var dpr = window.devicePixelRatio || 1;
+        var rect = canvas.getBoundingClientRect();
+
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.width * 0.25 * dpr;
+
+        var ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    function updateCycles() {
+        numCycles = parseFloat(this.value);
+        document.getElementById('cyclesValue').textContent = numCycles.toFixed(1);
+        redrawAll();
+    }
+
+    function navigatePrev() {
+        if (currentComponentIndex > 0) {
+            currentComponentIndex--;
+            updateComponentView();
+        }
+    }
+
+    function navigateNext() {
+        if (currentComponentIndex < components.length - 1) {
+            currentComponentIndex++;
+            updateComponentView();
+        }
+    }
+
+    function updateComponentView() {
+        document.getElementById('componentNumber').textContent =
+            'Component ' + (currentComponentIndex + 1) + ' of ' + components.length;
+
+        document.getElementById('prevComponent').disabled = currentComponentIndex === 0;
+        document.getElementById('nextComponent').disabled = currentComponentIndex === components.length - 1;
+
+        var container = document.getElementById('sliderContainer');
+        container.innerHTML = '';
+        container.appendChild(createComponent(currentComponentIndex));
+
+        updateSliderValues();
+    }
+
+    function updateSliderValues() {
+        var component = userComponents[currentComponentIndex];
+        var container = document.querySelector('.component-container');
+
+        container.querySelector('[data-control="freq"]').value = component.freq;
+        container.querySelector('[data-control="amp"]').value = component.amp;
+        container.querySelector('[data-control="phase"]').value = component.phase;
+
+        var displays = container.getElementsByClassName('value-display');
+        for (var i = 0; i < displays.length; i++) {
+            var display = displays[i];
+            var control = display.getAttribute('data-for');
+            display.textContent = component[control].toFixed(2);
+        }
+    }
+
+    function createComponent(index) {
+        var div = document.createElement('div');
+        div.className = 'component-container';
+
+        var title = document.createElement('div');
+        title.textContent = 'Component ' + (index + 1);
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '10px';
+        div.appendChild(title);
+
+        var controls = [
+            {name: 'freq', label: 'F', max: 10, step: 0.1},
+            {name: 'amp', label: 'A', max: 1, step: 0.01},
+            {name: 'phase', label: 'P', max: 1, step: 0.01}
+        ];
+
+        for (var i = 0; i < controls.length; i++) {
+            var control = controls[i];
+            var container = document.createElement('div');
+            container.className = 'slider-container';
+
+            var row = document.createElement('div');
+            row.className = 'slider-row';
+
+            // Minus button
+            var minusBtn = document.createElement('button');
+            minusBtn.className = 'adjust-button';
+            minusBtn.textContent = '-';
+            minusBtn.onclick = createAdjustHandler(index, control.name, -control.step);
+
+            var label = document.createElement('span');
+            label.className = 'slider-label';
+            label.textContent = control.label + ':';
+
+            var slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'slider';
+            slider.min = 0;
+            slider.max = control.max;
+            slider.step = control.step;
+            slider.value = userComponents[index][control.name];
+            slider.setAttribute('data-control', control.name);
+            slider.addEventListener('mousedown', createSliderHandler(index, control.name));
+            slider.addEventListener('touchstart', createSliderHandler(index, control.name));
+            slider.addEventListener('input', createSliderHandler(index, control.name));
+
+            // Plus button (replaces value display)
+            var plusBtn = document.createElement('button');
+            plusBtn.className = 'adjust-button';
+            plusBtn.textContent = '+';
+            plusBtn.onclick = createAdjustHandler(index, control.name, control.step);
+
+            row.appendChild(minusBtn);
+            row.appendChild(label);
+            row.appendChild(slider);
+            row.appendChild(plusBtn);
+            container.appendChild(row);
+            div.appendChild(container);
+        }
+
+        return div;
+    }
+
+    function createAdjustHandler(index, controlName, step) {
+        return function() {
+            var slider = document.querySelector(`[data-control="${controlName}"]`);
+            var currentValue = parseFloat(slider.value);
+            var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
+            slider.value = newValue;
+
+            activeInteractions++;
+            lastModifiedHarmonic = index;
+            modifyUserComponents(index, controlName, newValue);
+
+            // Clear lastModifiedHarmonic after a short delay
+            setTimeout(() => {
+                activeInteractions--;
+                if (activeInteractions === 0) {
+                    lastModifiedHarmonic = null;
+                    drawAttempt();
+                }
+            }, 500);
+        };
+    }
+
+    function createSliderHandler(index, controlName) {
+        return function(event) {
+            var newValue = parseFloat(this.value);
+
+            if (event.type === 'mousedown' || event.type === 'touchstart') {
+                activeInteractions++;
+                lastModifiedHarmonic = index;
+
+                // Only add listeners if they haven't been added yet
+                const clearModified = () => {
+                    activeInteractions--;
+                    if (activeInteractions === 0) {
+                        lastModifiedHarmonic = null;
+                        drawAttempt();
+                    }
+                    document.removeEventListener('mouseup', clearModified);
+                    document.removeEventListener('touchend', clearModified);
+                };
+
+                document.addEventListener('mouseup', clearModified);
+                document.addEventListener('touchend', clearModified);
+            }
+
+            modifyUserComponents(index, controlName, newValue);
+        };
+    }
+
+    function updateAnswerString() {
+        var answer = userComponents.map(comp => {
+            let freq = Number(comp.freq.toFixed(1)).toString();
+            let amp = Number(comp.amp.toFixed(2)).toString();
+            let phase = Number(comp.phase.toFixed(2)).toString();
+            return `${freq} ${amp} ${phase}`;
+        }).join(', ');
+        document.getElementById('answerString').textContent = answer;
+    }
+
+    function initializeCopyButton() {
+        document.getElementById('copyButton').onclick = function() {
+            var text = document.getElementById('answerString').textContent;
+            navigator.clipboard.writeText(text).then(function() {
+                var originalText = this.textContent;
+                this.textContent = 'Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 1000);
+            }.bind(this));
+        };
+    }
+
+    function drawGridLines(canvas, ctx) {
+        var rect = canvas.getBoundingClientRect();
+        var cycleWidth = rect.width / numCycles;
+
+        // Set initial grid style
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
 
-        for (let i = 0; i <= numCycles; i++) {
-            const x = i * cycleWidth;
+        // Draw vertical cycle lines
+        ctx.setLineDash([5, 5]);
+        for (var i = 0; i <= numCycles; i++) {
+            var x = i * cycleWidth;
             ctx.beginPath();
             ctx.moveTo(x, 0);
-            ctx.lineTo(x, canvas.height);
+            ctx.lineTo(x, rect.height);
             ctx.stroke();
         }
 
+        // Draw horizontal amplitude lines
+        // The canvas height represents amplitudes from -1 to 1
+        // So we'll draw lines at each 0.1 interval
+        var canvasHeight = rect.height;
+        var centerY = canvasHeight / 2;
+        var stepSize = (canvasHeight-20) / 20; // 20 steps for -1 to 1 in 0.1 increments
+
+        for (var i = -10; i <= 10; i++) {
+            var y = centerY + (i * stepSize);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(rect.width, y);
+            ctx.stroke();
+        }
+
+        // Reset dash setting
         ctx.setLineDash([]);
     }
 
-    function drawWaveform(canvas, components, isTarget = false) {
-        const ctx = canvas.getContext('2d');
-
-        drawGridLines(canvas);
-
-        // Draw center line
-        ctx.strokeStyle = '#999';
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height/2);
-        ctx.lineTo(canvas.width, canvas.height/2);
-        ctx.stroke();
+    function drawWaveform(canvas, comps, colour, ctx) {
+        var rect = canvas.getBoundingClientRect();
 
         // Calculate points
-        const points = new Array(canvas.width).fill(0);
+        var points = [];
+        for (var x = 0; x < rect.width; x++) {
+            points[x] = 0;
+        }
 
-        components.forEach(comp => {
-            if (comp.freq === 0) return; // Skip components with zero frequency
-            for (let x = 0; x < canvas.width; x++) {
-                const t = x * (Math.PI * 2 * numCycles / canvas.width);
+        for (var i = 0; i < comps.length; i++) {
+            var comp = comps[i];
+            if (comp.freq === 0) continue;
+
+            for (var x = 0; x < rect.width; x++) {
+                var t = x * (Math.PI * 2 * numCycles / rect.width);
                 points[x] += comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
             }
-        });
+        }
 
-        // Scale to fit canvas
-        const maxAmp = Math.max(1, ...points.map(Math.abs));
-        const scale = (canvas.height/2 - 20) / maxAmp;
+        var scale = (rect.height/2 - 20);
 
         // Draw waveform
-        ctx.strokeStyle = isTarget ? 'blue' : 'red';
+        ctx.strokeStyle = colour;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        points.forEach((y, x) => {
-            const scaledY = y * scale + canvas.height/2;
-            if (x === 0) ctx.moveTo(x, scaledY);
-            else ctx.lineTo(x, scaledY);
-        });
+
+        for (var x = 0; x < points.length; x++) {
+            var scaledY = points[x] * scale + rect.height/2;
+            if (x === 0) {
+                ctx.moveTo(x, scaledY);
+            } else {
+                ctx.lineTo(x, scaledY);
+            }
+        }
         ctx.stroke();
     }
 
     function drawSingleHarmonic(canvas, component) {
-        if (component.freq === 0) return; // Skip components with zero frequency
+        if (component.freq === 0) return;
 
-        const ctx = canvas.getContext('2d');
-        const points = new Array(canvas.width).fill(0);
+        var ctx = canvas.getContext('2d');
+        var rect = canvas.getBoundingClientRect();
+        var points = [];
 
-        for (let x = 0; x < canvas.width; x++) {
-            const t = x * (Math.PI * 2 * numCycles / canvas.width);
+        for (var x = 0; x < rect.width; x++) {
+            var t = x * (Math.PI * 2 * numCycles / rect.width);
             points[x] = component.amp * Math.sin(component.freq * t + component.phase * Math.PI * 2);
         }
 
-        // Scale consistently
-        const maxAmp = Math.max(1, ...points.map(Math.abs));
-        const scale = (canvas.height/2 - 20) / maxAmp;
+        var scale = (rect.height/2 - 20);
 
-        // Draw waveform
         ctx.strokeStyle = '#888';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        points.forEach((y, x) => {
-            const scaledY = y * scale + canvas.height/2;
-            if (x === 0) ctx.moveTo(x, scaledY);
-            else ctx.lineTo(x, scaledY);
-        });
+
+        for (var x = 0; x < points.length; x++) {
+            var scaledY = points[x] * scale + rect.height/2;
+            if (x === 0) {
+                ctx.moveTo(x, scaledY);
+            } else {
+                ctx.lineTo(x, scaledY);
+            }
+        }
         ctx.stroke();
     }
 
     function drawAttempt() {
-        const canvas = document.getElementById('attemptCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        var canvas = document.getElementById('attemptCanvas');
+        var ctx = setupCanvas(canvas);
 
-        drawGridLines(canvas);
-        drawWaveform(canvas, userComponents);
+        // Clear and draw grid once
+        var rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawGridLines(canvas, ctx);
 
         if (lastModifiedHarmonic !== null) {
-            drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
+            // First draw the sum of all components except the modified one in red
+            var tempComponents = [...userComponents];
+            var modifiedComponent = tempComponents[lastModifiedHarmonic];
+            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
+            drawWaveform(canvas, tempComponents, 'red', ctx);
+
+            // Then draw the sum of all components in grey on top
+            drawWaveform(canvas, userComponents, '#888', ctx);
+        } else {
+            // When no component is being modified, draw all components in red
+            drawWaveform(canvas, userComponents, 'red', ctx);
         }
     }
+    function redrawAll() {
+        var targetCanvas = document.getElementById('targetCanvas');
+        var ctx = setupCanvas(targetCanvas);
+        var rect = targetCanvas.getBoundingClientRect();
 
-    // Initial setup
-    createSliders();
-    drawWaveform(document.getElementById('targetCanvas'), components, true);
-    drawAttempt();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawGridLines(targetCanvas, ctx);
+        drawWaveform(document.getElementById('targetCanvas'), components, 'blue', ctx);
+        drawAttempt();
+    }
+
+    // Initialize everything
+    function init() {
+        initializeComponents();
+
+        document.getElementById('cyclesSlider').onchange = updateCycles;
+        document.getElementById('cyclesSlider').oninput = updateCycles;
+        document.getElementById('prevComponent').onclick = navigatePrev;
+        document.getElementById('nextComponent').onclick = navigateNext;
+
+        updateComponentView();
+        redrawAll();
+        updateAnswerString();
+        initializeCopyButton();
+
+        // Handle window resize
+        var resizeTimer = null;
+        window.onresize = function() {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(redrawAll, 250);
+        };
+    }
+
+    // Start the application
+    init();
 </script>
 </body>
 </html>

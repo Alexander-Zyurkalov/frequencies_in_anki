@@ -28,17 +28,18 @@
 </div>
 
 <script>
+    // Parse frequency string
+    var frequencyString = '{{frequencies}}';
+    var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
     var numCycles = 2;
 
-    // Parse frequency string
-    var frequencyString = '{{frequencies}}';
-    var components = [];
     var userComponents = [];
 
     var activeIndicator = null;
     var indicatorTimeout = null;
+    var activeInteractions = 0;
 
     function modifyUserComponents(index, property, value) {
         userComponents[index][property] = value;
@@ -242,13 +243,17 @@
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
 
+            activeInteractions++;
             lastModifiedHarmonic = index;
             modifyUserComponents(index, controlName, newValue);
 
             // Clear lastModifiedHarmonic after a short delay
             setTimeout(() => {
-                lastModifiedHarmonic = null;
-                drawAttempt();
+                activeInteractions--;
+                if (activeInteractions === 0) {
+                    lastModifiedHarmonic = null;
+                    drawAttempt();
+                }
             }, 500);
         };
     }
@@ -256,22 +261,27 @@
     function createSliderHandler(index, controlName) {
         return function(event) {
             var newValue = parseFloat(this.value);
-            lastModifiedHarmonic = index;
-            modifyUserComponents(index, controlName, newValue);
 
-            // Only clear lastModifiedHarmonic on mouseup/touchend
-            const clearModified = () => {
-                lastModifiedHarmonic = null;
-                drawAttempt();
-                document.removeEventListener('mouseup', clearModified);
-                document.removeEventListener('touchend', clearModified);
-            };
-
-            // Add the listeners if they haven't been added yet
             if (event.type === 'mousedown' || event.type === 'touchstart') {
+                activeInteractions++;
+                lastModifiedHarmonic = index;
+
+                // Only add listeners if they haven't been added yet
+                const clearModified = () => {
+                    activeInteractions--;
+                    if (activeInteractions === 0) {
+                        lastModifiedHarmonic = null;
+                        drawAttempt();
+                    }
+                    document.removeEventListener('mouseup', clearModified);
+                    document.removeEventListener('touchend', clearModified);
+                };
+
                 document.addEventListener('mouseup', clearModified);
                 document.addEventListener('touchend', clearModified);
             }
+
+            modifyUserComponents(index, controlName, newValue);
         };
     }
 
