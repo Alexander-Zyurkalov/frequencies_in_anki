@@ -454,26 +454,24 @@
     }
 
     function createSliderHandler(index, controlName) {
+        const clearModified = () => {
+            if (activeInteractions > 0) {
+                activeInteractions--;
+                if (activeInteractions === 0) {
+                    lastModifiedHarmonic = null;
+                    drawAttempt();
+                }
+            }
+        }
+        document.addEventListener('mouseup', clearModified);
+        document.addEventListener('touchend', clearModified);
+
         return function(event) {
             var newValue = parseFloat(this.value);
 
             if (event.type === 'mousedown' || event.type === 'touchstart') {
                 activeInteractions++;
                 lastModifiedHarmonic = index;
-
-                // Only add listeners if they haven't been added yet
-                const clearModified = () => {
-                    activeInteractions--;
-                    if (activeInteractions === 0) {
-                        lastModifiedHarmonic = null;
-                        drawAttempt();
-                    }
-                    document.removeEventListener('mouseup', clearModified);
-                    document.removeEventListener('touchend', clearModified);
-                };
-
-                document.addEventListener('mouseup', clearModified);
-                document.addEventListener('touchend', clearModified);
             }
 
             modifyUserComponents(index, controlName, newValue);
