@@ -40,6 +40,14 @@
     var activeIndicator = null;
     var indicatorTimeout = null;
 
+    function modifyUserComponents(index, property, value) {
+        userComponents[index][property] = value;
+        lastModifiedHarmonic = index;
+        drawAttempt();
+        updateAnswerString();
+    }
+
+
     function createFloatingIndicator() {
         const indicator = document.createElement('div');
         indicator.className = 'floating-indicator';
@@ -233,22 +241,16 @@
             var currentValue = parseFloat(slider.value);
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
-            userComponents[index][controlName] = newValue;
-            lastModifiedHarmonic = index;
+            modifyUserComponents(index, controlName, newValue);
             showFloatingValue(newValue, slider, controlName);
-            drawAttempt();
-            updateAnswerString();
         };
     }
 
     function createSliderHandler(index, controlName) {
         return function() {
             var newValue = parseFloat(this.value);
-            userComponents[index][controlName] = newValue;
-            lastModifiedHarmonic = index;
+            modifyUserComponents(index, controlName, newValue);
             showFloatingValue(newValue, this, controlName);
-            drawAttempt();
-            updateAnswerString();
         };
     }
 
@@ -312,7 +314,7 @@
         ctx.setLineDash([]);
     }
 
-    function drawWaveform(canvas, comps, isTarget) {
+    function drawWaveform(canvas, comps, colour) {
         var ctx = setupCanvas(canvas);
         var rect = canvas.getBoundingClientRect();
 
@@ -345,7 +347,7 @@
         var scale = (rect.height/2 - 20);
 
         // Draw waveform
-        ctx.strokeStyle = isTarget ? 'blue' : 'red';
+        ctx.strokeStyle = colour;
         ctx.lineWidth = 2;
         ctx.beginPath();
 
@@ -391,7 +393,7 @@
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
-        drawWaveform(canvas, userComponents, false);
+        drawWaveform(canvas, userComponents, 'red');
 
         if (lastModifiedHarmonic !== null) {
             drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
@@ -399,7 +401,7 @@
     }
 
     function redrawAll() {
-        drawWaveform(document.getElementById('targetCanvas'), components, true);
+        drawWaveform(document.getElementById('targetCanvas'), components, 'blue');
         drawAttempt();
     }
 
