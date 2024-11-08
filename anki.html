@@ -42,12 +42,10 @@
 
     function modifyUserComponents(index, property, value) {
         userComponents[index][property] = value;
-        lastModifiedHarmonic = index;
         drawAttempt();
         updateAnswerString();
-        showFloatingValue(newValue, slider, controlName);
+        showFloatingValue(value, null, property);
     }
-
 
     function createFloatingIndicator() {
         const indicator = document.createElement('div');
@@ -216,8 +214,9 @@
             slider.step = control.step;
             slider.value = userComponents[index][control.name];
             slider.setAttribute('data-control', control.name);
-            slider.oninput = createSliderHandler(index, control.name);
-            slider.onchange = createSliderHandler(index, control.name);
+            slider.addEventListener('mousedown', createSliderHandler(index, control.name));
+            slider.addEventListener('touchstart', createSliderHandler(index, control.name));
+            slider.addEventListener('input', createSliderHandler(index, control.name));
 
             // Plus button (replaces value display)
             var plusBtn = document.createElement('button');
@@ -242,14 +241,37 @@
             var currentValue = parseFloat(slider.value);
             var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
             slider.value = newValue;
+
+            lastModifiedHarmonic = index;
             modifyUserComponents(index, controlName, newValue);
+
+            // Clear lastModifiedHarmonic after a short delay
+            setTimeout(() => {
+                lastModifiedHarmonic = null;
+                drawAttempt();
+            }, 500);
         };
     }
 
     function createSliderHandler(index, controlName) {
-        return function() {
+        return function(event) {
             var newValue = parseFloat(this.value);
-           modifyUserComponents(index, controlName, newValue);
+            lastModifiedHarmonic = index;
+            modifyUserComponents(index, controlName, newValue);
+
+            // Only clear lastModifiedHarmonic on mouseup/touchend
+            const clearModified = () => {
+                lastModifiedHarmonic = null;
+                drawAttempt();
+                document.removeEventListener('mouseup', clearModified);
+                document.removeEventListener('touchend', clearModified);
+            };
+
+            // Add the listeners if they haven't been added yet
+            if (event.type === 'mousedown' || event.type === 'touchstart') {
+                document.addEventListener('mouseup', clearModified);
+                document.addEventListener('touchend', clearModified);
+            }
         };
     }
 
@@ -392,10 +414,23 @@
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
-        drawWaveform(canvas, userComponents, 'red');
+        var ctx = setupCanvas(canvas);
+        var rect = canvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+        drawGridLines(canvas, ctx);
 
         if (lastModifiedHarmonic !== null) {
-            drawSingleHarmonic(canvas, userComponents[lastModifiedHarmonic]);
+            // First draw the sum of all components except the modified one in red
+            var tempComponents = [...userComponents];
+            var modifiedComponent = tempComponents[lastModifiedHarmonic];
+            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
+            drawWaveform(canvas, tempComponents, 'red');
+
+            // Then draw the sum of all components in grey on top
+            drawWaveform(canvas, userComponents, '#888');
+        } else {
+            // When no component is being modified, draw all components in red
+            drawWaveform(canvas, userComponents, 'red');
         }
     }
 
