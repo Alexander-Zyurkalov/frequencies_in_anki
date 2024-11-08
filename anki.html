@@ -259,7 +259,7 @@
     }
 
     function createSliderHandler(index, controlName) {
-        const clearModified = () => {
+        const decrementActiveInteractions = () => {
             if (activeInteractions > 0) {
                 activeInteractions--;
                 if (activeInteractions === 0) {
@@ -268,8 +268,8 @@
                 }
             }
         }
-        document.addEventListener('mouseup', clearModified);
-        document.addEventListener('touchend', clearModified);
+        document.addEventListener('mouseup', decrementActiveInteractions);
+        document.addEventListener('touchend', decrementActiveInteractions);
 
         return function(event) {
             var newValue = parseFloat(this.value);
