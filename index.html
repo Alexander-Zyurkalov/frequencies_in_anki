@@ -721,6 +721,8 @@
         const activeQueues = Object.keys(animationState.queues).filter(color =>
             animationState.queues[color].frames.length > 0
         );
+        // Ensure 'red' is processed last
+        activeQueues.sort(color => (color === 'red' ? 1 : -1));
 
         if (activeQueues.length === 0) {
             stopAnimation();
