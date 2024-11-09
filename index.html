@@ -711,34 +711,40 @@
         var ctx = setupCanvas(canvas);
         var rect = canvas.getBoundingClientRect();
 
-        // Clear and draw grid once
-        ctx.clearRect(0, 0, rect.width, rect.height);
-        drawGridLines(canvas, ctx);
-
+        const userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
         if (lastModifiedHarmonic !== null ) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
             if (activeInteractions > 0) {
-                var userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
-                var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                if (animationState.isAnimating) {
 
-                // First, draw the sum of all components except the modified one in red
-                drawWaveform(canvas, withoutModifiedCompPoints, 'red', ctx);
+                }
+                else {
+                    var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
 
-                // Then draw the sum of all components in grey on top
-                drawWaveform(canvas, userComponentsPoints, '#d3d2d2', ctx);
+                    // Clear and draw grid once
+                    ctx.clearRect(0, 0, rect.width, rect.height);
+                    drawGridLines(canvas, ctx);
 
+                    // First, draw the sum of all components except the modified one in red
+                    drawWaveform(canvas, withoutModifiedCompPoints, 'red', ctx);
+
+                    // Then draw the sum of all components in grey on top
+                    drawWaveform(canvas, userComponentsPoints, '#d3d2d2', ctx);
+                }
             } else if (activeInteractions === 0) {
                 var startPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
-                var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
-                scheduleMorphicDraw(canvas, startPoints, endPoints, 'red', ctx);
+                scheduleMorphicDraw(canvas, startPoints, userComponentsPoints, 'red', ctx);
                 lastModifiedHarmonic = null;
             }
         }
         else {
+            // Clear and draw grid once
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            drawGridLines(canvas, ctx);
+
             // When no component is being modified, draw all components in red
-            var points = calculateWaveform(rect.width, rect.height, userComponents);
-            drawWaveform(canvas, points, 'red', ctx);
+            drawWaveform(canvas, userComponentsPoints, 'red', ctx);
         }
     }
     function redrawAll() {
