@@ -228,7 +228,7 @@
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
-    var lastModifiedFields  = [];
+    var preservedPriorValues  = [];
     var numCycles = 2;
 
     var userComponents = [];
@@ -304,7 +304,7 @@
                 userComponentDefaultValues.phase = 0;
             }
             userComponents.push(userComponentDefaultValues);
-            lastModifiedFields.push(
+            preservedPriorValues.push(
                 {
                     freq: userComponentDefaultValues.freq,
                     amp: userComponentDefaultValues.amp,
@@ -480,15 +480,15 @@
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
-                lastModifiedFields[index][controlName] = 0;
+                preservedPriorValues[index][controlName] = 0;
                 console.log('Touch ended');
-                console.log('lasModifiedFields[' + index + "]" + JSON.stringify(lastModifiedFields[index]));
+                console.log('lasModifiedFields[' + index + "]" + JSON.stringify(preservedPriorValues[index]));
                 if (activeInteractions === 0) {
                     drawAttempt();
-                    lastModifiedFields[index].freq = userComponents[index].freq;
-                    lastModifiedFields[index].amp = userComponents[index].amp;
-                    lastModifiedFields[index].phase = userComponents[index].phase;
-                    console.log('afterDrawAttempt: lasModifiedFields[' + index + "]" + JSON.stringify(lastModifiedFields[index]));
+                    preservedPriorValues[index].freq = userComponents[index].freq;
+                    preservedPriorValues[index].amp = userComponents[index].amp;
+                    preservedPriorValues[index].phase = userComponents[index].phase;
+                    console.log('afterDrawAttempt: lasModifiedFields[' + index + "]" + JSON.stringify(preservedPriorValues[index]));
                 }
             }
         };
@@ -662,6 +662,14 @@
         animate();
     }
 
+    function getUserComponentsPreviousState() {
+        var tempComponents = JSON.parse(JSON.stringify(userComponents));
+        tempComponents[lastModifiedHarmonic].freq = preservedPriorValues[lastModifiedHarmonic].freq;
+        tempComponents[lastModifiedHarmonic].amp = preservedPriorValues[lastModifiedHarmonic].amp;
+        tempComponents[lastModifiedHarmonic].phase = preservedPriorValues[lastModifiedHarmonic].phase;
+        return tempComponents;
+    }
+
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
@@ -674,20 +682,16 @@
         if (lastModifiedHarmonic !== null && activeInteractions > 0) {
             console.log('drawAttempt: activeInteractions > 0, drawing modified component');
             // First, draw the sum of all components except the modified one in red
-            var tempComponents = [...userComponents];
-            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            drawWaveform(canvas, tempComponents, 'red', ctx);
+            var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
+            userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
+            drawWaveform(canvas, userComponentsWithoutTheModifiedOne, 'red', ctx);
 
             // Then draw the sum of all components in grey on top
             drawWaveform(canvas, userComponents, '#d3d2d2', ctx);
         } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
-            var tempComponents = JSON.parse(JSON.stringify(userComponents));
-            tempComponents[lastModifiedHarmonic].freq = lastModifiedFields[lastModifiedHarmonic].freq;
-            tempComponents[lastModifiedHarmonic].amp = lastModifiedFields[lastModifiedHarmonic].amp;
-            tempComponents[lastModifiedHarmonic].phase = lastModifiedFields[lastModifiedHarmonic].phase;
+            var userComponentsPreviousState = getUserComponentsPreviousState();
             var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
-            scheduleMorphicDraw(canvas, tempComponents, tempUserComponents, 'red', ctx);
-
+            scheduleMorphicDraw(canvas, userComponentsPreviousState, tempUserComponents, 'red', ctx);
         }
         else {
             // When no component is being modified, draw all components in red
