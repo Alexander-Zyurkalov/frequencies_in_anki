@@ -577,12 +577,7 @@
         return points;
     }
 
-    function drawWaveform(canvas, comps, colour, ctx) {
-        var rect = canvas.getBoundingClientRect();
-
-        // Calculate points
-        var points = calculateWaveform(rect.width, rect.height, comps);
-
+    function drawWaveform(canvas, points, colour, ctx) {
         // Draw waveform
         ctx.strokeStyle = colour;
         ctx.lineWidth = 2;
@@ -617,17 +612,33 @@
         });
     }
 
+    // Modified easing function with better precision for small values
+    function easeInOutCubic(t) {
+        // Ensure t is between 0 and 1
+        t = Math.max(0, Math.min(1, t));
+
+        // Enhanced precision cubic easing
+        if (t < 0.5) {
+            return 4 * t * t * t;
+        } else {
+            const t2 = -2 * t + 2;
+            return 1 - (t2 * t2 * t2) / 2;
+        }
+    }
+
     function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
         const duration = 1000; // Animation duration in milliseconds
-        const stepTime = 16; //
+        const stepTime = 16;
         const steps = Math.floor(duration / stepTime);
         let currentStep = 0;
+        const rect = canvas.getBoundingClientRect();
 
         function animate() {
             // Ensure we complete the animation
             if (currentStep > steps) {
                 // Draw final state
-                drawWaveform(canvas, endComponents, color, ctx);
+                const points = calculateWaveform(rect.width, rect.height, endComponents);
+                drawWaveform(canvas, points, color, ctx);
                 return;
             }
 
@@ -638,32 +649,17 @@
             const progress = easeInOutCubic(rawProgress);
 
             // Clear canvas and redraw grid
-            const rect = canvas.getBoundingClientRect();
             ctx.clearRect(0, 0, rect.width, rect.height);
             drawGridLines(canvas, ctx);
 
             // Calculate and draw interpolated state
             const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
-
-            drawWaveform(canvas, interpolatedComponents, color, ctx);
+            const points = calculateWaveform(rect.width, rect.height, interpolatedComponents);
+            drawWaveform(canvas, points, color, ctx);
 
             // Schedule next frame
             currentStep++;
             setTimeout(animate, stepTime);
-        }
-
-        // Modified easing function with better precision for small values
-        function easeInOutCubic(t) {
-            // Ensure t is between 0 and 1
-            t = Math.max(0, Math.min(1, t));
-
-            // Enhanced precision cubic easing
-            if (t < 0.5) {
-                return 4 * t * t * t;
-            } else {
-                const t2 = -2 * t + 2;
-                return 1 - (t2 * t2 * t2) / 2;
-            }
         }
 
         // Start animation immediately
@@ -681,30 +677,32 @@
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
+        var rect = canvas.getBoundingClientRect();
 
         // Clear and draw grid once
-        var rect = canvas.getBoundingClientRect();
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
 
         if (lastModifiedHarmonic !== null && activeInteractions > 0) {
-            console.log('drawAttempt: activeInteractions > 0, drawing modified component');
             // First, draw the sum of all components except the modified one in red
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            drawWaveform(canvas, userComponentsWithoutTheModifiedOne, 'red', ctx);
+            var points = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+            drawWaveform(canvas, points, 'red', ctx);
 
             // Then draw the sum of all components in grey on top
-            drawWaveform(canvas, userComponents, '#d3d2d2', ctx);
-        } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
+            points = calculateWaveform(rect.width, rect.height, userComponents);
+            drawWaveform(canvas, points, '#d3d2d2', ctx);
+        }
+        else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
             var userComponentsPreviousState = getUserComponentsPreviousState();
             var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
             scheduleMorphicDraw(canvas, userComponentsPreviousState, tempUserComponents, 'red', ctx);
         }
         else {
             // When no component is being modified, draw all components in red
-            console.log('drawAttempt: no component is being modified, drawing all components in red');
-            drawWaveform(canvas, userComponents, 'red', ctx);
+            var points = calculateWaveform(rect.width, rect.height, userComponents);
+            drawWaveform(canvas, points, 'red', ctx);
         }
     }
     function redrawAll() {
@@ -714,7 +712,9 @@
 
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(targetCanvas, ctx);
-        drawWaveform(document.getElementById('targetCanvas'), components, 'blue', ctx);
+
+        var points = calculateWaveform(rect.width, rect.height, components);
+        drawWaveform(targetCanvas, points, 'blue', ctx);
         drawAttempt();
     }
 
