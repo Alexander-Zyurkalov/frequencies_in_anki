@@ -554,7 +554,8 @@
         ctx.setLineDash([]);
     }
 
-    function calculateWaveform(width, comps) {
+    function calculateWaveform(width, height, comps) {
+        var scale = (height/2 - 20);
         var points = [];
         for (var x = 0; x < width; x++) {
             points[x] = 0;
@@ -570,6 +571,9 @@
                     points[x] -= comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
             }
         }
+        for (var x = 0; x < width; x++) {
+            points[x] = points[x] * scale + height/2;
+        }
         return points;
     }
 
@@ -577,9 +581,7 @@
         var rect = canvas.getBoundingClientRect();
 
         // Calculate points
-        var points = calculateWaveform(rect.width, comps);
-
-        var scale = (rect.height/2 - 20);
+        var points = calculateWaveform(rect.width, rect.height, comps);
 
         // Draw waveform
         ctx.strokeStyle = colour;
@@ -587,7 +589,7 @@
         ctx.beginPath();
 
         for (var x = 0; x < points.length; x++) {
-            var scaledY = points[x] * scale + rect.height/2;
+            var scaledY = points[x]
             if (x === 0) {
                 ctx.moveTo(x, scaledY);
             } else {
