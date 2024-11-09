@@ -237,6 +237,14 @@
     var indicatorTimeout = null;
     var activeInteractions = 0;
 
+    const animationState = {
+        frames: [], // Each frame is {points: [], color: string}
+        isAnimating: false,
+        currentFrame: 0,
+        stepTime: 16,
+        lastClearTime: 0
+    };
+
     function modifyUserComponents(index, property, value) {
         userComponents[index][property] = value;
         drawAttempt();
@@ -595,7 +603,7 @@
     }
 
     // Calculate points for all animation frames upfront
-    function calculateMorphFrames(startPoints, endPoints, steps) {
+    function calculateMorphFrames(startPoints, endPoints, steps, color) {
         const frames = [];
         const width = startPoints.length;
 
@@ -609,7 +617,10 @@
                 framePoints[x] = startPoints[x] + (endPoints[x] - startPoints[x]) * progress;
             }
 
-            frames.push(framePoints);
+            frames.push({
+                points: framePoints,
+                color: color
+            });
         }
 
         return frames;
@@ -631,38 +642,54 @@
 
     function scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx) {
         const duration = 1000; // Animation duration in milliseconds
-        const stepTime = 16;
-        const steps = Math.floor(duration / stepTime);
+        const steps = Math.floor(duration / animationState.stepTime);
 
-        // Precalculate all animation frames
-        const frames = calculateMorphFrames(startPoints, endPoints, steps);
+        // Calculate new frames
+        const newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
 
-        // Initialize frame counter
-        let currentFrame = 0;
+        // If it's been more than 2 seconds since the last clear, or no animation is running,
+        // clear the queue and start fresh
+        const now = Date.now();
+        if (!animationState.isAnimating || now - animationState.lastClearTime > 2000 ) {
+            animationState.frames = newFrames;
+            animationState.currentFrame = 0;
+            animationState.lastClearTime = now;
+        } else {
+            // Append new frames to existing queue
+            animationState.frames = animationState.frames.concat(newFrames);
+        }
 
-        // Function to draw the next frame
-        function drawNextFrame() {
-            //TODO we will need to have a common queue for all scheduled animations
-            if (currentFrame >= frames.length) {
-                return;
-            }
+        // If not already animating, start the animation loop
+        if (!animationState.isAnimating) {
+            animationState.isAnimating = true;
+            requestAnimationFrame(() => drawNextFrame(canvas, ctx));
+        }
+    }
+
+    function drawNextFrame(canvas, ctx) {
+        // Draw current frame
+        if (animationState.currentFrame < animationState.frames.length) {
+            const rect = canvas.getBoundingClientRect();
 
             // Clear canvas and redraw grid
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGridLines(canvas, ctx);
 
-            // Draw current frame
-            drawWaveform(canvas, frames[currentFrame], color, ctx);
+            const frame = animationState.frames[animationState.currentFrame];
+            drawWaveform(canvas, frame.points, frame.color, ctx);
+
+            animationState.currentFrame++;
 
             // Schedule next frame
-            currentFrame++;
-            if (currentFrame < frames.length) {
-                setTimeout(drawNextFrame, stepTime);
-            }
+            setTimeout(() => {
+                requestAnimationFrame(() => drawNextFrame(canvas, ctx));
+            }, animationState.stepTime);
+        } else {
+            // Animation complete
+            animationState.isAnimating = false;
+            animationState.currentFrame = 0;
+            animationState.frames = [];
         }
-
-        // Start animation
-        drawNextFrame();
     }
 
     function getUserComponentsPreviousState() {
