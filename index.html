@@ -272,22 +272,35 @@
         return indicator;
     }
 
+    // Helper function to format frequency for display
+    function formatFrequency(freq) {
+        if (freq === 0) return "0×";
+        if (freq === 1) return "1×";
+
+        if (freq < 1) {
+            // For fractions, show as 1/n
+            const denominator = Math.round(1 / freq);
+            return `1/${denominator}×`;
+        } else {
+            // For multipliers, round to 1 decimal place for cleaner display
+            return `${freq.toFixed(1)}×`;
+        }
+    }
+
+    // Keep the showFloatingValue and updateAnswerString functions as they were
     function showFloatingValue(value, slider, type) {
-        // Remove any existing indicator
         if (activeIndicator) {
             activeIndicator.remove();
         }
         clearTimeout(indicatorTimeout);
 
-        // Create and position new indicator
         const indicator = createFloatingIndicator();
         const answerContainer = document.querySelector('.navigation-controls');
         answerContainer.appendChild(indicator);
 
-        // Format the value based on type
         let displayValue;
         if (type === 'freq') {
-            displayValue = value.toFixed(1) + '×';
+            displayValue = formatFrequency(value);
         } else if (type === 'amp' || type === 'phase') {
             displayValue = value.toFixed(2);
         }
@@ -296,7 +309,6 @@
         indicator.style.opacity = '1';
         activeIndicator = indicator;
 
-        // Hide after 1.5 seconds
         indicatorTimeout = setTimeout(() => {
             indicator.style.opacity = '0';
             setTimeout(() => indicator.remove(), 200);
@@ -387,8 +399,19 @@
     // Convert actual value to slider value
     function convertToSliderValue(controlName, value) {
         if (controlName === 'freq') {
-            // Convert frequency (0-40) to slider value (0-1)
-            return value === 0 ? 0 : Math.log2(value) / Math.log2(40);
+            if (value === 0) return 0;
+
+            if (value < 1) {
+                // For fractions (1/3 to 1), map to 0-0.25 range
+                // 1/3 → 0
+                // 1   → 0.25
+                return 0.25 * (3 * value - 1) / 2;
+            } else {
+                // For multipliers (1 to 40), map to 0.25-1 range using logarithmic scale
+                // 1  → 0.25
+                // 40 → 1.0
+                return 0.25 + 0.75 * (Math.log2(value) / Math.log2(40));
+            }
         }
         return value;
     }
@@ -396,8 +419,20 @@
     // Convert slider value to actual value
     function convertFromSliderValue(controlName, sliderValue) {
         if (controlName === 'freq') {
-            // Convert slider value (0-1) to frequency (0-40)
-            return sliderValue === 0 ? 0 : Math.pow(40, sliderValue);
+            if (sliderValue === 0) return 0;
+
+            if (sliderValue < 0.25) {
+                // Convert 0-0.25 range to fractions (1/3 to 1)
+                // 0    → 1/3
+                // 0.25 → 1
+                return (2 * sliderValue / 0.25 + 1) / 3;
+            } else {
+                // Convert 0.25-1 range to multipliers (1 to 40)
+                // 0.25 → 1
+                // 1.0  → 40
+                const normalizedSlider = (sliderValue - 0.25) / 0.75;
+                return Math.pow(40, normalizedSlider);
+            }
         }
         return sliderValue;
     }
@@ -530,9 +565,9 @@
 
     function updateAnswerString() {
         var answer = userComponents.map(comp => {
-            let freq = Number(comp.freq.toFixed(1)).toString();
-            let amp = Number(comp.amp.toFixed(2)).toString();
-            let phase = Number(comp.phase.toFixed(2)).toString();
+            let freq = comp.freq === 0 ? "0" : comp.freq.toFixed(3);
+            let amp = comp.amp.toFixed(2);
+            let phase = comp.phase.toFixed(2);
             return `${freq} ${amp} ${phase}`;
         }).join(', ');
         document.getElementById('answerString').textContent = answer;
