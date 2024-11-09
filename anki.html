@@ -33,6 +33,7 @@
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
+    var lastModifiedFields  = [];
     var numCycles = 2;
 
     var userComponents = [];
@@ -108,6 +109,13 @@
                 userComponentDefaultValues.phase = 0;
             }
             userComponents.push(userComponentDefaultValues);
+            lastModifiedFields.push(
+                {
+                    freq: userComponentDefaultValues.freq,
+                    amp: userComponentDefaultValues.amp,
+                    phase: userComponentDefaultValues.phase
+                }
+            );
         }
     }
 
@@ -215,10 +223,10 @@
             slider.step = control.step;
             slider.value = userComponents[index][control.name];
             slider.setAttribute('data-control', control.name);
-            slider.addEventListener('mousedown', createSliderHandler(index, control.name), {passive: true});
-            slider.addEventListener('touchstart', createSliderHandler(index, control.name), {passive: true});
-            slider.addEventListener('input', createSliderHandler(index, control.name), {passive: true});
-            slider.addEventListener('mouseup',  createSliderTouchEndHandler(index, control.name));
+            slider.addEventListener('mousedown', createSliderHandler(index, control.name));
+            slider.addEventListener('touchstart', createSliderHandler(index, control.name));
+            slider.addEventListener('input', createSliderHandler(index, control.name));
+            slider.addEventListener('mouseup', createSliderTouchEndHandler(index, control.name));
             slider.addEventListener('touchend', createSliderTouchEndHandler(index, control.name));
 
             // Plus button (replaces value display)
@@ -253,7 +261,6 @@
             setTimeout(() => {
                 activeInteractions--;
                 if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
                     drawAttempt();
                 }
             }, 500);
@@ -261,7 +268,6 @@
     }
 
     function createSliderHandler(index, controlName) {
-
         return function(event) {
             var newValue = parseFloat(this.value);
 
@@ -274,23 +280,21 @@
         };
     }
 
+
     function createSliderTouchEndHandler(index, controlName) {
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
+                lastModifiedFields[index][controlName] = 0;
                 if (activeInteractions === 0) {
-                    lastModifiedHarmonic = null;
                     drawAttempt();
+                    lastModifiedFields[index].freq = userComponents[index].freq;
+                    lastModifiedFields[index].amp = userComponents[index].amp;
+                    lastModifiedFields[index].phase = userComponents[index].phase;
                 }
-
-            }
-            // Prevent any default browser handling
-            if (event.cancelable) {
-                event.preventDefault();
             }
         };
     }
-
 
     function updateAnswerString() {
         var answer = userComponents.map(comp => {
@@ -389,6 +393,77 @@
         ctx.stroke();
     }
 
+    function interpolateComponents(start, end, progress) {
+        // Ensure progress is exactly between 0 and 1
+        const clampedProgress = Math.max(0, Math.min(1, progress));
+
+        return start.map((comp, i) => {
+            // Handle frequency interpolation with extra precision
+            const freqDiff = end[i].freq - comp.freq;
+            const ampDiff = end[i].amp - comp.amp;
+            const phaseDiff = end[i].phase - comp.phase;
+
+            return {
+                freq: comp.freq + freqDiff * clampedProgress,
+                amp: comp.amp + ampDiff * clampedProgress,
+                phase: comp.phase + phaseDiff * clampedProgress
+            };
+        });
+    }
+
+    function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
+        const duration = 1000; // Animation duration in milliseconds
+        const stepTime = 16; //
+        const steps = Math.floor(duration / stepTime);
+        let currentStep = 0;
+
+        function animate() {
+            // Ensure we complete the animation
+            if (currentStep > steps) {
+                // Draw final state
+                drawWaveform(canvas, endComponents, color, ctx);
+                return;
+            }
+
+            // Calculate raw progress (0 to 1)
+            const rawProgress = currentStep / steps;
+
+            // Apply easing function
+            const progress = easeInOutCubic(rawProgress);
+
+            // Clear canvas and redraw grid
+            const rect = canvas.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            drawGridLines(canvas, ctx);
+
+            // Calculate and draw interpolated state
+            const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
+
+            drawWaveform(canvas, interpolatedComponents, color, ctx);
+
+            // Schedule next frame
+            currentStep++;
+            setTimeout(animate, stepTime);
+        }
+
+        // Modified easing function with better precision for small values
+        function easeInOutCubic(t) {
+            // Ensure t is between 0 and 1
+            t = Math.max(0, Math.min(1, t));
+
+            // Enhanced precision cubic easing
+            if (t < 0.5) {
+                return 4 * t * t * t;
+            } else {
+                const t2 = -2 * t + 2;
+                return 1 - (t2 * t2 * t2) / 2;
+            }
+        }
+
+        // Start animation immediately
+        animate();
+    }
+
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
@@ -398,15 +473,24 @@
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
 
-        if (lastModifiedHarmonic !== null) {
-            // First draw the sum of all components except the modified one in red
+        if (lastModifiedHarmonic !== null && activeInteractions > 0) {
+            // First, draw the sum of all components except the modified one in red
             var tempComponents = [...userComponents];
             tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
             drawWaveform(canvas, tempComponents, 'red', ctx);
 
             // Then draw the sum of all components in grey on top
-            drawWaveform(canvas, userComponents, '#888', ctx);
-        } else {
+            drawWaveform(canvas, userComponents, '#d3d2d2', ctx);
+        } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
+            var tempComponents = JSON.parse(JSON.stringify(userComponents));
+            tempComponents[lastModifiedHarmonic].freq = lastModifiedFields[lastModifiedHarmonic].freq;
+            tempComponents[lastModifiedHarmonic].amp = lastModifiedFields[lastModifiedHarmonic].amp;
+            tempComponents[lastModifiedHarmonic].phase = lastModifiedFields[lastModifiedHarmonic].phase;
+            var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
+            scheduleMorphicDraw(canvas, tempComponents, tempUserComponents, 'red', ctx);
+
+        }
+        else {
             // When no component is being modified, draw all components in red
             drawWaveform(canvas, userComponents, 'red', ctx);
         }
