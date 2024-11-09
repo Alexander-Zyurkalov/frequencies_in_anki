@@ -288,15 +288,12 @@
         let displayValue;
         if (type === 'freq') {
             displayValue = value.toFixed(1) + '×';
-        } else if (type === 'amp') {
+        } else if (type === 'amp' || type === 'phase') {
             displayValue = value.toFixed(2);
-        } else { // phase
-            displayValue = (value).toFixed(2);
         }
 
         indicator.textContent = displayValue;
         indicator.style.opacity = '1';
-
         activeIndicator = indicator;
 
         // Hide after 1.5 seconds
@@ -379,16 +376,30 @@
         var component = userComponents[currentComponentIndex];
         var container = document.querySelector('.component-container');
 
-        container.querySelector('[data-control="freq"]').value = component.freq;
-        container.querySelector('[data-control="amp"]').value = component.amp;
-        container.querySelector('[data-control="phase"]').value = component.phase;
+        ['freq', 'amp', 'phase'].forEach(controlName => {
+            var slider = container.querySelector(`[data-control="${controlName}"]`);
+            if (slider) {
+                slider.value = convertToSliderValue(controlName, component[controlName]);
+            }
+        });
+    }
 
-        var displays = container.getElementsByClassName('value-display');
-        for (var i = 0; i < displays.length; i++) {
-            var display = displays[i];
-            var control = display.getAttribute('data-for');
-            display.textContent = component[control].toFixed(2);
+    // Convert actual value to slider value
+    function convertToSliderValue(controlName, value) {
+        if (controlName === 'freq') {
+            // Convert frequency (0-40) to slider value (0-1)
+            return value === 0 ? 0 : Math.log2(value) / Math.log2(40);
         }
+        return value;
+    }
+
+    // Convert slider value to actual value
+    function convertFromSliderValue(controlName, sliderValue) {
+        if (controlName === 'freq') {
+            // Convert slider value (0-1) to frequency (0-40)
+            return sliderValue === 0 ? 0 : Math.pow(40, sliderValue);
+        }
+        return sliderValue;
     }
 
     function createComponent(index) {
@@ -402,8 +413,8 @@
         div.appendChild(title);
 
         var controls = [
-            {name: 'freq', label: 'F', max: 10, step: 0.1},
-            {name: 'amp', label: 'A', max: 1, step: 0.01},
+            {name: 'freq', label: 'F', max: 1, step: 0.01}, // max is now 1 for exponential scaling
+            {name: 'amp', label: 'A', max: 1, min: -1, step: 0.01}, // amplitude now goes from -1 to 1
             {name: 'phase', label: 'P', max: 1, step: 0.01}
         ];
 
@@ -428,10 +439,10 @@
             var slider = document.createElement('input');
             slider.type = 'range';
             slider.className = 'slider';
-            slider.min = 0;
+            slider.min = control.min || 0;
             slider.max = control.max;
             slider.step = control.step;
-            slider.value = userComponents[index][control.name];
+            slider.value = convertToSliderValue(control.name, userComponents[index][control.name]);
             slider.setAttribute('data-control', control.name);
             slider.addEventListener('mousedown', createSliderHandler(index, control.name));
             slider.addEventListener('touchstart', createSliderHandler(index, control.name));
@@ -439,7 +450,7 @@
             slider.addEventListener('mouseup', createSliderTouchEndHandler(index, control.name));
             slider.addEventListener('touchend', createSliderTouchEndHandler(index, control.name));
 
-            // Plus button (replaces value display)
+            // Plus button
             var plusBtn = document.createElement('button');
             plusBtn.className = 'adjust-button';
             plusBtn.textContent = '+';
@@ -459,9 +470,23 @@
     function createAdjustHandler(index, controlName, step) {
         return function() {
             var slider = document.querySelector(`[data-control="${controlName}"]`);
-            var currentValue = parseFloat(slider.value);
-            var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
-            slider.value = newValue;
+            var currentSliderValue = parseFloat(slider.value);
+            var currentActualValue = convertFromSliderValue(controlName, currentSliderValue);
+
+            // Calculate new actual value
+            var newValue;
+            if (controlName === 'freq') {
+                // For frequency, adjust by multiplying/dividing by a factor
+                newValue = currentActualValue * (step > 0 ? 1.1 : 0.9);
+                newValue = Math.min(Math.max(newValue, 0), 40);
+            } else {
+                // For other controls, use linear adjustment
+                newValue = currentActualValue + step;
+                newValue = Math.min(Math.max(newValue, parseFloat(slider.min) || 0), parseFloat(slider.max));
+            }
+
+            // Convert back to slider value
+            slider.value = convertToSliderValue(controlName, newValue);
 
             activeInteractions++;
             lastModifiedHarmonic = index;
@@ -479,7 +504,8 @@
 
     function createSliderHandler(index, controlName) {
         return function(event) {
-            var newValue = parseFloat(this.value);
+            var sliderValue = parseFloat(this.value);
+            var newValue = convertFromSliderValue(controlName, sliderValue);
 
             if (event.type === 'mousedown' || event.type === 'touchstart') {
                 activeInteractions++;
