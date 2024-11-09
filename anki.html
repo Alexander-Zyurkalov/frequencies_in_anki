@@ -33,14 +33,36 @@
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
-    var lastModifiedFields  = [];
     var numCycles = 2;
 
     var userComponents = [];
+    var redPoints = null;
 
     var activeIndicator = null;
     var indicatorTimeout = null;
     var activeInteractions = 0;
+
+    const animationState = {
+        queues: {
+            'red': {
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            },
+            'blue': {
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            },
+            '#d3d2d2': {  // grey color
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            }
+        },
+        isAnimating: false,
+        stepTime: 16
+    };
 
     function modifyUserComponents(index, property, value) {
         userComponents[index][property] = value;
@@ -55,34 +77,43 @@
         return indicator;
     }
 
+    // Helper function to format frequency for display
+    function formatFrequency(freq) {
+        if (freq === 0) return "0×";
+        if (freq === 1) return "1×";
+
+        if (freq < 1) {
+            // For fractions, show as 1/n
+            const denominator = Math.round(1 / freq);
+            return `1/${denominator}×`;
+        } else {
+            // For multipliers, round to 1 decimal place for cleaner display
+            return `${freq.toFixed(1)}×`;
+        }
+    }
+
+    // Keep the showFloatingValue and updateAnswerString functions as they were
     function showFloatingValue(value, slider, type) {
-        // Remove any existing indicator
         if (activeIndicator) {
             activeIndicator.remove();
         }
         clearTimeout(indicatorTimeout);
 
-        // Create and position new indicator
         const indicator = createFloatingIndicator();
         const answerContainer = document.querySelector('.navigation-controls');
         answerContainer.appendChild(indicator);
 
-        // Format the value based on type
         let displayValue;
         if (type === 'freq') {
-            displayValue = value.toFixed(1) + '×';
-        } else if (type === 'amp') {
+            displayValue = formatFrequency(value);
+        } else if (type === 'amp' || type === 'phase') {
             displayValue = value.toFixed(2);
-        } else { // phase
-            displayValue = (value).toFixed(2);
         }
 
         indicator.textContent = displayValue;
         indicator.style.opacity = '1';
-
         activeIndicator = indicator;
 
-        // Hide after 1.5 seconds
         indicatorTimeout = setTimeout(() => {
             indicator.style.opacity = '0';
             setTimeout(() => indicator.remove(), 200);
@@ -109,13 +140,6 @@
                 userComponentDefaultValues.phase = 0;
             }
             userComponents.push(userComponentDefaultValues);
-            lastModifiedFields.push(
-                {
-                    freq: userComponentDefaultValues.freq,
-                    amp: userComponentDefaultValues.amp,
-                    phase: userComponentDefaultValues.phase
-                }
-            );
         }
     }
 
@@ -169,16 +193,53 @@
         var component = userComponents[currentComponentIndex];
         var container = document.querySelector('.component-container');
 
-        container.querySelector('[data-control="freq"]').value = component.freq;
-        container.querySelector('[data-control="amp"]').value = component.amp;
-        container.querySelector('[data-control="phase"]').value = component.phase;
+        ['freq', 'amp', 'phase'].forEach(controlName => {
+            var slider = container.querySelector(`[data-control="${controlName}"]`);
+            if (slider) {
+                slider.value = convertToSliderValue(controlName, component[controlName]);
+            }
+        });
+    }
 
-        var displays = container.getElementsByClassName('value-display');
-        for (var i = 0; i < displays.length; i++) {
-            var display = displays[i];
-            var control = display.getAttribute('data-for');
-            display.textContent = component[control].toFixed(2);
+    // Convert actual value to slider value
+    function convertToSliderValue(controlName, value) {
+        if (controlName === 'freq') {
+            if (value === 0) return 0;
+
+            if (value < 1) {
+                // For fractions (1/3 to 1), map to 0-0.25 range
+                // 1/3 → 0
+                // 1   → 0.25
+                return 0.25 * (3 * value - 1) / 2;
+            } else {
+                // For multipliers (1 to 40), map to 0.25-1 range using logarithmic scale
+                // 1  → 0.25
+                // 40 → 1.0
+                return 0.25 + 0.75 * (Math.log2(value) / Math.log2(40));
+            }
         }
+        return value;
+    }
+
+    // Convert slider value to actual value
+    function convertFromSliderValue(controlName, sliderValue) {
+        if (controlName === 'freq') {
+            if (sliderValue === 0) return 0;
+
+            if (sliderValue < 0.25) {
+                // Convert 0-0.25 range to fractions (1/3 to 1)
+                // 0    → 1/3
+                // 0.25 → 1
+                return (2 * sliderValue / 0.25 + 1) / 3;
+            } else {
+                // Convert 0.25-1 range to multipliers (1 to 40)
+                // 0.25 → 1
+                // 1.0  → 40
+                const normalizedSlider = (sliderValue - 0.25) / 0.75;
+                return Math.pow(40, normalizedSlider);
+            }
+        }
+        return sliderValue;
     }
 
     function createComponent(index) {
@@ -192,8 +253,8 @@
         div.appendChild(title);
 
         var controls = [
-            {name: 'freq', label: 'F', max: 10, step: 0.1},
-            {name: 'amp', label: 'A', max: 1, step: 0.01},
+            {name: 'freq', label: 'F', max: 1, step: 0.01}, // max is now 1 for exponential scaling
+            {name: 'amp', label: 'A', max: 1, min: -1, step: 0.01}, // amplitude now goes from -1 to 1
             {name: 'phase', label: 'P', max: 1, step: 0.01}
         ];
 
@@ -218,10 +279,10 @@
             var slider = document.createElement('input');
             slider.type = 'range';
             slider.className = 'slider';
-            slider.min = 0;
+            slider.min = control.min || 0;
             slider.max = control.max;
             slider.step = control.step;
-            slider.value = userComponents[index][control.name];
+            slider.value = convertToSliderValue(control.name, userComponents[index][control.name]);
             slider.setAttribute('data-control', control.name);
             slider.addEventListener('mousedown', createSliderHandler(index, control.name));
             slider.addEventListener('touchstart', createSliderHandler(index, control.name));
@@ -229,7 +290,7 @@
             slider.addEventListener('mouseup', createSliderTouchEndHandler(index, control.name));
             slider.addEventListener('touchend', createSliderTouchEndHandler(index, control.name));
 
-            // Plus button (replaces value display)
+            // Plus button
             var plusBtn = document.createElement('button');
             plusBtn.className = 'adjust-button';
             plusBtn.textContent = '+';
@@ -249,9 +310,23 @@
     function createAdjustHandler(index, controlName, step) {
         return function() {
             var slider = document.querySelector(`[data-control="${controlName}"]`);
-            var currentValue = parseFloat(slider.value);
-            var newValue = Math.min(Math.max(currentValue + step, slider.min), slider.max);
-            slider.value = newValue;
+            var currentSliderValue = parseFloat(slider.value);
+            var currentActualValue = convertFromSliderValue(controlName, currentSliderValue);
+
+            // Calculate new actual value
+            var newValue;
+            if (controlName === 'freq') {
+                // For frequency, adjust by multiplying/dividing by a factor
+                newValue = currentActualValue * (step > 0 ? 1.1 : 0.9);
+                newValue = Math.min(Math.max(newValue, 0), 40);
+            } else {
+                // For other controls, use linear adjustment
+                newValue = currentActualValue + step;
+                newValue = Math.min(Math.max(newValue, parseFloat(slider.min) || 0), parseFloat(slider.max));
+            }
+
+            // Convert back to slider value
+            slider.value = convertToSliderValue(controlName, newValue);
 
             activeInteractions++;
             lastModifiedHarmonic = index;
@@ -269,7 +344,8 @@
 
     function createSliderHandler(index, controlName) {
         return function(event) {
-            var newValue = parseFloat(this.value);
+            var sliderValue = parseFloat(this.value);
+            var newValue = convertFromSliderValue(controlName, sliderValue);
 
             if (event.type === 'mousedown' || event.type === 'touchstart') {
                 activeInteractions++;
@@ -285,12 +361,8 @@
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
-                lastModifiedFields[index][controlName] = 0;
                 if (activeInteractions === 0) {
                     drawAttempt();
-                    lastModifiedFields[index].freq = userComponents[index].freq;
-                    lastModifiedFields[index].amp = userComponents[index].amp;
-                    lastModifiedFields[index].phase = userComponents[index].phase;
                 }
             }
         };
@@ -298,9 +370,9 @@
 
     function updateAnswerString() {
         var answer = userComponents.map(comp => {
-            let freq = Number(comp.freq.toFixed(1)).toString();
-            let amp = Number(comp.amp.toFixed(2)).toString();
-            let phase = Number(comp.phase.toFixed(2)).toString();
+            let freq = comp.freq === 0 ? "0" : comp.freq.toFixed(3);
+            let amp = comp.amp.toFixed(2);
+            let phase = comp.phase.toFixed(2);
             return `${freq} ${amp} ${phase}`;
         }).join(', ');
         document.getElementById('answerString').textContent = answer;
@@ -356,34 +428,37 @@
         ctx.setLineDash([]);
     }
 
-    function drawWaveform(canvas, comps, colour, ctx) {
-        var rect = canvas.getBoundingClientRect();
-
-        // Calculate points
+    function calculateWaveform(width, height, comps) {
+        var scale = (height/2 - 20);
         var points = [];
-        for (var x = 0; x < rect.width; x++) {
+        for (var x = 0; x < width; x++) {
             points[x] = 0;
         }
 
         for (var i = 0; i < comps.length; i++) {
             var comp = comps[i];
-            if (comp.freq === 0) continue;
-
-            for (var x = 0; x < rect.width; x++) {
-                var t = x * (Math.PI * 2 * numCycles / rect.width);
-                points[x] += comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
+            for (var x = 0; x < width; x++) {
+                var t = x * (Math.PI * 2 * numCycles / width);
+                if (comp.freq === 0)
+                    points[x] -= comp.amp;
+                else
+                    points[x] -= comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
             }
         }
+        for (var x = 0; x < width; x++) {
+            points[x] = points[x] * scale + height/2;
+        }
+        return points;
+    }
 
-        var scale = (rect.height/2 - 20);
-
+    function drawWaveform(canvas, points, colour, ctx) {
         // Draw waveform
         ctx.strokeStyle = colour;
         ctx.lineWidth = 2;
         ctx.beginPath();
 
         for (var x = 0; x < points.length; x++) {
-            var scaledY = points[x] * scale + rect.height/2;
+            var scaledY = points[x]
             if (x === 0) {
                 ctx.moveTo(x, scaledY);
             } else {
@@ -393,106 +468,171 @@
         ctx.stroke();
     }
 
-    function interpolateComponents(start, end, progress) {
-        // Ensure progress is exactly between 0 and 1
-        const clampedProgress = Math.max(0, Math.min(1, progress));
+    // Calculate points for all animation frames upfront
+    function calculateMorphFrames(startPoints, endPoints, steps, color) {
+        const frames = [];
+        const width = startPoints.length;
 
-        return start.map((comp, i) => {
-            // Handle frequency interpolation with extra precision
-            const freqDiff = end[i].freq - comp.freq;
-            const ampDiff = end[i].amp - comp.amp;
-            const phaseDiff = end[i].phase - comp.phase;
+        for (let step = 0; step <= steps; step++) {
+            const rawProgress = step / steps;
+            const progress = easeInOutCubic(rawProgress);
 
-            return {
-                freq: comp.freq + freqDiff * clampedProgress,
-                amp: comp.amp + ampDiff * clampedProgress,
-                phase: comp.phase + phaseDiff * clampedProgress
-            };
+            const framePoints = new Array(width);
+            for (let x = 0; x < width; x++) {
+                framePoints[x] = startPoints[x] + (endPoints[x] - startPoints[x]) * progress;
+            }
+
+            frames.push({
+                points: framePoints,
+                color: color
+            });
+        }
+
+        return frames;
+    }
+
+    // Modified easing function with better precision for small values
+    function easeInOutCubic(t) {
+        // Ensure t is between 0 and 1
+        t = Math.max(0, Math.min(1, t));
+
+        // Enhanced precision cubic easing
+        if (t < 0.5) {
+            return 4 * t * t * t;
+        } else {
+            const t2 = -2 * t + 2;
+            return 1 - (t2 * t2 * t2) / 2;
+        }
+    }
+
+    function arePointsEqual(points1, points2) {
+        if (points1.length !== points2.length) {
+            return false;
+        }
+        for (var i = 0; i < points1.length; i++) {
+            if (points1[i] !== points2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    function scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx) {
+        const duration = 1000; // Animation duration in milliseconds
+        const steps = Math.floor(duration / animationState.stepTime);
+        var newFrames;
+
+        if (arePointsEqual(startPoints, endPoints)) {
+            newFrames = [{
+                points: JSON.parse(JSON.stringify(startPoints)),
+                color: color
+            }]
+        } else {
+            newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
+        }
+
+        // If it's been more than 5 seconds since the last clear, or no animation is running,
+        // clear the queue and start fresh
+        const now = Date.now();
+        if (!animationState.isAnimating || now - animationState.queues[color].lastClearTime > 5000) {
+            animationState.queues[color].frames = newFrames;
+            animationState.queues[color].currentFrame = 0;
+            animationState.queues[color].lastClearTime = now;
+        } else {
+            animationState.queues[color].frames = animationState.queues[color].frames.concat(newFrames);
+        }
+
+        // If not already animating, start the animation loop
+        if (!animationState.isAnimating) {
+            animationState.isAnimating = true;
+            requestAnimationFrame(() => drawNextFrame(canvas, ctx));
+        }
+    }
+
+    function stopAnimation() {
+        animationState.isAnimating = false;
+        Object.keys(animationState.queues).forEach(colour => {
+            animationState.queues[colour].currentFrame = 0;
+            animationState.queues[colour].frames = [];
         });
     }
 
-    function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
-        const duration = 1000; // Animation duration in milliseconds
-        const stepTime = 16; //
-        const steps = Math.floor(duration / stepTime);
-        let currentStep = 0;
+    function drawNextFrame(canvas, ctx) {
+        const activeQueues = Object.keys(animationState.queues).filter(color =>
+            animationState.queues[color].frames.length > 0
+        );
+        // Ensure 'red' is processed last
+        activeQueues.sort(color => (color === 'red' ? 1 : -1));
 
-        function animate() {
-            // Ensure we complete the animation
-            if (currentStep > steps) {
-                // Draw final state
-                drawWaveform(canvas, endComponents, color, ctx);
-                return;
-            }
-
-            // Calculate raw progress (0 to 1)
-            const rawProgress = currentStep / steps;
-
-            // Apply easing function
-            const progress = easeInOutCubic(rawProgress);
-
-            // Clear canvas and redraw grid
-            const rect = canvas.getBoundingClientRect();
-            ctx.clearRect(0, 0, rect.width, rect.height);
-            drawGridLines(canvas, ctx);
-
-            // Calculate and draw interpolated state
-            const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
-
-            drawWaveform(canvas, interpolatedComponents, color, ctx);
-
-            // Schedule next frame
-            currentStep++;
-            setTimeout(animate, stepTime);
+        if (activeQueues.length === 0) {
+            stopAnimation();
+            return;
         }
 
-        // Modified easing function with better precision for small values
-        function easeInOutCubic(t) {
-            // Ensure t is between 0 and 1
-            t = Math.max(0, Math.min(1, t));
+        // Clear canvas and redraw grid
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGridLines(canvas, ctx);
 
-            // Enhanced precision cubic easing
-            if (t < 0.5) {
-                return 4 * t * t * t;
-            } else {
-                const t2 = -2 * t + 2;
-                return 1 - (t2 * t2 * t2) / 2;
+        let shouldContinue = false;
+
+        // Draw current frame for each active queue
+        activeQueues.forEach(colour => {
+            const queue = animationState.queues[colour];
+            const frameIndex = Math.min(queue.currentFrame, queue.frames.length - 1);
+            const frame = queue.frames[frameIndex];
+
+            drawWaveform(canvas, frame.points, colour, ctx);
+
+            // Only increment if we haven't reached the end
+            if (queue.currentFrame < queue.frames.length - 1) {
+                queue.currentFrame++;
+                shouldContinue = true;
             }
-        }
+        });
 
-        // Start animation immediately
-        animate();
+        // Continue animation if any queue still has frames
+        if (shouldContinue) {
+            setTimeout(() => {
+                requestAnimationFrame(() => drawNextFrame(canvas, ctx));
+            }, animationState.stepTime);
+        } else {
+            stopAnimation();
+        }
     }
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
         var ctx = setupCanvas(canvas);
-
-        // Clear and draw grid once
         var rect = canvas.getBoundingClientRect();
-        ctx.clearRect(0, 0, rect.width, rect.height);
-        drawGridLines(canvas, ctx);
 
-        if (lastModifiedHarmonic !== null && activeInteractions > 0) {
-            // First, draw the sum of all components except the modified one in red
-            var tempComponents = [...userComponents];
-            tempComponents[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            drawWaveform(canvas, tempComponents, 'red', ctx);
+        const userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
+        if (lastModifiedHarmonic !== null) {
+            var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
+            userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
 
-            // Then draw the sum of all components in grey on top
-            drawWaveform(canvas, userComponents, '#d3d2d2', ctx);
-        } else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
-            var tempComponents = JSON.parse(JSON.stringify(userComponents));
-            tempComponents[lastModifiedHarmonic].freq = lastModifiedFields[lastModifiedHarmonic].freq;
-            tempComponents[lastModifiedHarmonic].amp = lastModifiedFields[lastModifiedHarmonic].amp;
-            tempComponents[lastModifiedHarmonic].phase = lastModifiedFields[lastModifiedHarmonic].phase;
-            var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
-            scheduleMorphicDraw(canvas, tempComponents, tempUserComponents, 'red', ctx);
-
+            if (activeInteractions > 0) {
+                var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                if (redPoints === null) {
+                    redPoints = userComponentsPoints;
+                }
+                scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx);
+                scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx);
+                redPoints = withoutModifiedCompPoints;
+            } else if (activeInteractions === 0) {
+                if (redPoints === null) {
+                    redPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                }
+                scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx);
+                redPoints = userComponentsPoints;
+                lastModifiedHarmonic = null;
+            }
         }
         else {
-            // When no component is being modified, draw all components in red
-            drawWaveform(canvas, userComponents, 'red', ctx);
+            if (redPoints === null) {
+                redPoints = calculateWaveform(rect.width, rect.height, [{amp: 0, freq: 0, phase: 0}]);
+            }
+            scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx);
+            redPoints = userComponentsPoints;
         }
     }
     function redrawAll() {
@@ -502,7 +642,11 @@
 
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(targetCanvas, ctx);
-        drawWaveform(document.getElementById('targetCanvas'), components, 'blue', ctx);
+
+        var points = calculateWaveform(rect.width, rect.height, components);
+        drawWaveform(targetCanvas, points, 'blue', ctx);
+
+        stopAnimation();
         drawAttempt();
     }
 
@@ -533,4 +677,6 @@
     // Start the application
     init();
 </script>
+</body>
+</html>
 <div>{{type::frequencies}}</div>
