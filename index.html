@@ -719,13 +719,15 @@
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
             if (activeInteractions > 0) {
+                var userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
+                var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+
                 // First, draw the sum of all components except the modified one in red
-                var points = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
-                drawWaveform(canvas, points, 'red', ctx);
+                drawWaveform(canvas, withoutModifiedCompPoints, 'red', ctx);
 
                 // Then draw the sum of all components in grey on top
-                points = calculateWaveform(rect.width, rect.height, userComponents);
-                drawWaveform(canvas, points, '#d3d2d2', ctx);
+                drawWaveform(canvas, userComponentsPoints, '#d3d2d2', ctx);
+
             } else if (activeInteractions === 0) {
                 var startPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
                 var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
