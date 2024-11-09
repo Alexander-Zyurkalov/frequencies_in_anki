@@ -709,22 +709,22 @@
         ctx.clearRect(0, 0, rect.width, rect.height);
         drawGridLines(canvas, ctx);
 
-        if (lastModifiedHarmonic !== null && activeInteractions > 0) {
-            // First, draw the sum of all components except the modified one in red
+        if (lastModifiedHarmonic !== null ) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
-            userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = { freq: 0, amp: 0, phase: 0 };
-            var points = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
-            drawWaveform(canvas, points, 'red', ctx);
+            userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
+            if (activeInteractions > 0) {
+                // First, draw the sum of all components except the modified one in red
+                var points = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                drawWaveform(canvas, points, 'red', ctx);
 
-            // Then draw the sum of all components in grey on top
-            points = calculateWaveform(rect.width, rect.height, userComponents);
-            drawWaveform(canvas, points, '#d3d2d2', ctx);
-        }
-        else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
-            var userComponentsPreviousState = getUserComponentsPreviousState();
-            var startPoints = calculateWaveform(rect.width, rect.height, userComponentsPreviousState);
-            var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
-            scheduleMorphicDraw(canvas, startPoints, endPoints, 'red', ctx);
+                // Then draw the sum of all components in grey on top
+                points = calculateWaveform(rect.width, rect.height, userComponents);
+                drawWaveform(canvas, points, '#d3d2d2', ctx);
+            } else if (activeInteractions === 0) {
+                var startPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
+                scheduleMorphicDraw(canvas, startPoints, endPoints, 'red', ctx);
+            }
         }
         else {
             // When no component is being modified, draw all components in red
