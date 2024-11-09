@@ -594,22 +594,25 @@
         ctx.stroke();
     }
 
-    function interpolateComponents(start, end, progress) {
-        // Ensure progress is exactly between 0 and 1
-        const clampedProgress = Math.max(0, Math.min(1, progress));
+    // Calculate points for all animation frames upfront
+    function calculateMorphFrames(startPoints, endPoints, steps) {
+        const frames = [];
+        const width = startPoints.length;
 
-        return start.map((comp, i) => {
-            // Handle frequency interpolation with extra precision
-            const freqDiff = end[i].freq - comp.freq;
-            const ampDiff = end[i].amp - comp.amp;
-            const phaseDiff = end[i].phase - comp.phase;
+        for (let step = 0; step <= steps; step++) {
+            const rawProgress = step / steps;
+            const progress = easeInOutCubic(rawProgress);
 
-            return {
-                freq: comp.freq + freqDiff * clampedProgress,
-                amp: comp.amp + ampDiff * clampedProgress,
-                phase: comp.phase + phaseDiff * clampedProgress
-            };
-        });
+            // Create new array of y-values for this frame
+            const framePoints = new Array(width);
+            for (let x = 0; x < width; x++) {
+                framePoints[x] = startPoints[x] + (endPoints[x] - startPoints[x]) * progress;
+            }
+
+            frames.push(framePoints);
+        }
+
+        return frames;
     }
 
     // Modified easing function with better precision for small values
@@ -626,44 +629,40 @@
         }
     }
 
-    function scheduleMorphicDraw(canvas, startComponents, endComponents, color, ctx) {
+    function scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx) {
         const duration = 1000; // Animation duration in milliseconds
         const stepTime = 16;
         const steps = Math.floor(duration / stepTime);
-        let currentStep = 0;
-        const rect = canvas.getBoundingClientRect();
 
-        function animate() {
-            // Ensure we complete the animation
-            if (currentStep > steps) {
-                // Draw final state
-                const points = calculateWaveform(rect.width, rect.height, endComponents);
-                drawWaveform(canvas, points, color, ctx);
+        // Precalculate all animation frames
+        const frames = calculateMorphFrames(startPoints, endPoints, steps);
+
+        // Initialize frame counter
+        let currentFrame = 0;
+
+        // Function to draw the next frame
+        function drawNextFrame() {
+            //TODO we will need to have a common queue for all scheduled animations
+            if (currentFrame >= frames.length) {
                 return;
             }
 
-            // Calculate raw progress (0 to 1)
-            const rawProgress = currentStep / steps;
-
-            // Apply easing function
-            const progress = easeInOutCubic(rawProgress);
-
             // Clear canvas and redraw grid
-            ctx.clearRect(0, 0, rect.width, rect.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawGridLines(canvas, ctx);
 
-            // Calculate and draw interpolated state
-            const interpolatedComponents = interpolateComponents(startComponents, endComponents, progress);
-            const points = calculateWaveform(rect.width, rect.height, interpolatedComponents);
-            drawWaveform(canvas, points, color, ctx);
+            // Draw current frame
+            drawWaveform(canvas, frames[currentFrame], color, ctx);
 
             // Schedule next frame
-            currentStep++;
-            setTimeout(animate, stepTime);
+            currentFrame++;
+            if (currentFrame < frames.length) {
+                setTimeout(drawNextFrame, stepTime);
+            }
         }
 
-        // Start animation immediately
-        animate();
+        // Start animation
+        drawNextFrame();
     }
 
     function getUserComponentsPreviousState() {
@@ -696,8 +695,9 @@
         }
         else if (lastModifiedHarmonic !== null && activeInteractions === 0) {
             var userComponentsPreviousState = getUserComponentsPreviousState();
-            var tempUserComponents = JSON.parse(JSON.stringify(userComponents));
-            scheduleMorphicDraw(canvas, userComponentsPreviousState, tempUserComponents, 'red', ctx);
+            var startPoints = calculateWaveform(rect.width, rect.height, userComponentsPreviousState);
+            var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
+            scheduleMorphicDraw(canvas, startPoints, endPoints, 'red', ctx);
         }
         else {
             // When no component is being modified, draw all components in red
