@@ -775,7 +775,6 @@
                 if (redPoints === null) {
                     redPoints = userComponentsPoints;
                 }
-                console.log('Add points to the queue');
                 scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx);
                 scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx);
                 redPoints = withoutModifiedCompPoints;
@@ -783,14 +782,12 @@
                 if (redPoints === null) {
                     redPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
                 }
-                console.log('Add points for the last time.');
                 scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx);
                 redPoints = userComponentsPoints;
                 lastModifiedHarmonic = null;
             }
         }
         else {
-            console.log('No modified component');
             if (redPoints === null) {
                 redPoints = calculateWaveform(rect.width, rect.height, [{amp: 0, freq: 0, phase: 0}]);
             }
