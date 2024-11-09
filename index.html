@@ -237,11 +237,25 @@
     var activeInteractions = 0;
 
     const animationState = {
-        frames: [], // Each frame is {points: [], color: string}
+        queues: {
+            'red': {
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            },
+            'blue': {
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            },
+            '#d3d2d2': {  // grey color
+                frames: [],
+                currentFrame: 0,
+                lastClearTime: 0
+            }
+        },
         isAnimating: false,
-        currentFrame: 0,
-        stepTime: 16,
-        lastClearTime: 0
+        stepTime: 16
     };
 
     function modifyUserComponents(index, property, value) {
@@ -597,7 +611,6 @@
             const rawProgress = step / steps;
             const progress = easeInOutCubic(rawProgress);
 
-            // Create new array of y-values for this frame
             const framePoints = new Array(width);
             for (let x = 0; x < width; x++) {
                 framePoints[x] = startPoints[x] + (endPoints[x] - startPoints[x]) * progress;
@@ -643,29 +656,24 @@
         const steps = Math.floor(duration / animationState.stepTime);
         var newFrames;
 
-        if (arePointsEqual(startPoints, endPoints) ) {
-            newFrames = [
-                {
-                    points: startPoints,
-                    color: color
-                }
-            ]
-        }
-        else {
-            // Calculate new frames
+        if (arePointsEqual(startPoints, endPoints)) {
+            newFrames = [{
+                points: startPoints,
+                color: color
+            }];
+        } else {
             newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
         }
 
         // If it's been more than 5 seconds since the last clear, or no animation is running,
         // clear the queue and start fresh
         const now = Date.now();
-        if (!animationState.isAnimating || now - animationState.lastClearTime > 5000 ) {
-            animationState.frames = newFrames;
-            animationState.currentFrame = 0;
-            animationState.lastClearTime = now;
+        if (!animationState.isAnimating || now - animationState.queues[color].lastClearTime > 5000) {
+            animationState.queues[color].frames = newFrames;
+            animationState.queues[color].currentFrame = 0;
+            animationState.queues[color].lastClearTime = now;
         } else {
-            // Append new frames to existing queue
-            animationState.frames = animationState.frames.concat(newFrames);
+            animationState.queues[color].frames = animationState.queues[color].frames.concat(newFrames);
         }
 
         // If not already animating, start the animation loop
@@ -677,31 +685,50 @@
 
     function stopAnimation() {
         animationState.isAnimating = false;
-        animationState.currentFrame = 0;
-        animationState.frames = [];
+        Object.keys(animationState.queues).forEach(colour => {
+            animationState.queues[colour].currentFrame = 0;
+            animationState.queues[colour].frames = [];
+        });
         lastModifiedHarmonic = null;
     }
 
     function drawNextFrame(canvas, ctx) {
-        // Draw current frame
-        if (animationState.currentFrame < animationState.frames.length) {
-            const rect = canvas.getBoundingClientRect();
+        const activeQueues = Object.keys(animationState.queues).filter(color =>
+            animationState.queues[color].frames.length > 0
+        );
 
-            // Clear canvas and redraw grid
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawGridLines(canvas, ctx);
+        if (activeQueues.length === 0) {
+            stopAnimation();
+            return;
+        }
 
-            const frame = animationState.frames[animationState.currentFrame];
-            drawWaveform(canvas, frame.points, frame.color, ctx);
+        // Clear canvas and redraw grid
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        drawGridLines(canvas, ctx);
 
-            animationState.currentFrame++;
+        let shouldContinue = false;
 
-            // Schedule next frame
+        // Draw current frame for each active queue
+        activeQueues.forEach(colour => {
+            const queue = animationState.queues[colour];
+            const frameIndex = Math.min(queue.currentFrame, queue.frames.length - 1);
+            const frame = queue.frames[frameIndex];
+
+            drawWaveform(canvas, frame.points, colour, ctx);
+
+            // Only increment if we haven't reached the end
+            if (queue.currentFrame < queue.frames.length - 1) {
+                queue.currentFrame++;
+                shouldContinue = true;
+            }
+        });
+
+        // Continue animation if any queue still has frames
+        if (shouldContinue) {
             setTimeout(() => {
                 requestAnimationFrame(() => drawNextFrame(canvas, ctx));
             }, animationState.stepTime);
         } else {
-            // Animation complete
             stopAnimation();
         }
     }
@@ -712,7 +739,7 @@
         var rect = canvas.getBoundingClientRect();
 
         const userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
-        if (lastModifiedHarmonic !== null ) {
+        if (lastModifiedHarmonic !== null) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
             if (activeInteractions > 0) {
@@ -747,6 +774,7 @@
             drawWaveform(canvas, userComponentsPoints, 'red', ctx);
         }
     }
+
     function redrawAll() {
         var targetCanvas = document.getElementById('targetCanvas');
         var ctx = setupCanvas(targetCanvas);
