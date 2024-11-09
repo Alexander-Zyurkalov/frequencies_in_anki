@@ -231,6 +231,7 @@
     var numCycles = 2;
 
     var userComponents = [];
+    var redPoints = null;
 
     var activeIndicator = null;
     var indicatorTimeout = null;
@@ -580,7 +581,6 @@
         }
         for (var x = 0; x < width; x++) {
             points[x] = points[x] * scale + height/2;
-            points[x].toFixed(3);
         }
         return points;
     }
@@ -658,9 +658,9 @@
 
         if (arePointsEqual(startPoints, endPoints)) {
             newFrames = [{
-                points: startPoints,
+                points: JSON.parse(JSON.stringify(startPoints)),
                 color: color
-            }];
+            }]
         } else {
             newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
         }
@@ -689,7 +689,6 @@
             animationState.queues[colour].currentFrame = 0;
             animationState.queues[colour].frames = [];
         });
-        lastModifiedHarmonic = null;
     }
 
     function drawNextFrame(canvas, ctx) {
@@ -742,39 +741,35 @@
         if (lastModifiedHarmonic !== null) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
+
             if (activeInteractions > 0) {
-                if (animationState.isAnimating) {
-
+                var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                if (redPoints === null) {
+                    redPoints = userComponentsPoints;
                 }
-                else {
-                    var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
-
-                    // Clear and draw grid once
-                    ctx.clearRect(0, 0, rect.width, rect.height);
-                    drawGridLines(canvas, ctx);
-
-                    // First, draw the sum of all components except the modified one in red
-                    drawWaveform(canvas, withoutModifiedCompPoints, 'red', ctx);
-
-                    // Then draw the sum of all components in grey on top
-                    drawWaveform(canvas, userComponentsPoints, '#d3d2d2', ctx);
-                }
+                console.log('Add points to the queue');
+                scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx);
+                scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx);
+                redPoints = withoutModifiedCompPoints;
             } else if (activeInteractions === 0) {
-                var startPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
-                scheduleMorphicDraw(canvas, startPoints, userComponentsPoints, 'red', ctx);
+                if (redPoints === null) {
+                    redPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                }
+                console.log('Add points for the last time.');
+                scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx);
+                redPoints = userComponentsPoints;
                 lastModifiedHarmonic = null;
             }
         }
         else {
-            // Clear and draw grid once
-            ctx.clearRect(0, 0, rect.width, rect.height);
-            drawGridLines(canvas, ctx);
-
-            // When no component is being modified, draw all components in red
-            drawWaveform(canvas, userComponentsPoints, 'red', ctx);
+            console.log('No modified component');
+            if (redPoints === null) {
+                redPoints = calculateWaveform(rect.width, rect.height, [{amp: 0, freq: 0, phase: 0}]);
+            }
+            scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx);
+            redPoints = userComponentsPoints;
         }
     }
-
     function redrawAll() {
         var targetCanvas = document.getElementById('targetCanvas');
         var ctx = setupCanvas(targetCanvas);
