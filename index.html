@@ -228,7 +228,6 @@
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
-    var preservedPriorValues  = [];
     var numCycles = 2;
 
     var userComponents = [];
@@ -312,13 +311,6 @@
                 userComponentDefaultValues.phase = 0;
             }
             userComponents.push(userComponentDefaultValues);
-            preservedPriorValues.push(
-                {
-                    freq: userComponentDefaultValues.freq,
-                    amp: userComponentDefaultValues.amp,
-                    phase: userComponentDefaultValues.phase
-                }
-            );
         }
     }
 
@@ -488,15 +480,8 @@
         return function(event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
-                preservedPriorValues[index][controlName] = 0;
-                console.log('Touch ended');
-                console.log('lasModifiedFields[' + index + "]" + JSON.stringify(preservedPriorValues[index]));
                 if (activeInteractions === 0) {
                     drawAttempt();
-                    preservedPriorValues[index].freq = userComponents[index].freq;
-                    preservedPriorValues[index].amp = userComponents[index].amp;
-                    preservedPriorValues[index].phase = userComponents[index].phase;
-                    console.log('afterDrawAttempt: lasModifiedFields[' + index + "]" + JSON.stringify(preservedPriorValues[index]));
                 }
             }
         };
@@ -581,6 +566,7 @@
         }
         for (var x = 0; x < width; x++) {
             points[x] = points[x] * scale + height/2;
+            points[x].toFixed(3);
         }
         return points;
     }
@@ -640,17 +626,40 @@
         }
     }
 
+    function arePointsEqual(points1, points2) {
+        if (points1.length !== points2.length) {
+            return false;
+        }
+        for (var i = 0; i < points1.length; i++) {
+            if (points1[i] !== points2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     function scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx) {
         const duration = 1000; // Animation duration in milliseconds
         const steps = Math.floor(duration / animationState.stepTime);
+        var newFrames;
 
-        // Calculate new frames
-        const newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
+        if (arePointsEqual(startPoints, endPoints) ) {
+            newFrames = [
+                {
+                    points: startPoints,
+                    color: color
+                }
+            ]
+        }
+        else {
+            // Calculate new frames
+            newFrames = calculateMorphFrames(startPoints, endPoints, steps, color);
+        }
 
-        // If it's been more than 2 seconds since the last clear, or no animation is running,
+        // If it's been more than 5 seconds since the last clear, or no animation is running,
         // clear the queue and start fresh
         const now = Date.now();
-        if (!animationState.isAnimating || now - animationState.lastClearTime > 2000 ) {
+        if (!animationState.isAnimating || now - animationState.lastClearTime > 5000 ) {
             animationState.frames = newFrames;
             animationState.currentFrame = 0;
             animationState.lastClearTime = now;
@@ -664,6 +673,12 @@
             animationState.isAnimating = true;
             requestAnimationFrame(() => drawNextFrame(canvas, ctx));
         }
+    }
+
+    function stopAnimation() {
+        animationState.isAnimating = false;
+        animationState.currentFrame = 0;
+        animationState.frames = [];
     }
 
     function drawNextFrame(canvas, ctx) {
@@ -686,18 +701,8 @@
             }, animationState.stepTime);
         } else {
             // Animation complete
-            animationState.isAnimating = false;
-            animationState.currentFrame = 0;
-            animationState.frames = [];
+            stopAnimation();
         }
-    }
-
-    function getUserComponentsPreviousState() {
-        var tempComponents = JSON.parse(JSON.stringify(userComponents));
-        tempComponents[lastModifiedHarmonic].freq = preservedPriorValues[lastModifiedHarmonic].freq;
-        tempComponents[lastModifiedHarmonic].amp = preservedPriorValues[lastModifiedHarmonic].amp;
-        tempComponents[lastModifiedHarmonic].phase = preservedPriorValues[lastModifiedHarmonic].phase;
-        return tempComponents;
     }
 
     function drawAttempt() {
@@ -742,6 +747,8 @@
 
         var points = calculateWaveform(rect.width, rect.height, components);
         drawWaveform(targetCanvas, points, 'blue', ctx);
+
+        stopAnimation();
         drawAttempt();
     }
 
