@@ -679,6 +679,7 @@
         animationState.isAnimating = false;
         animationState.currentFrame = 0;
         animationState.frames = [];
+        lastModifiedHarmonic = null;
     }
 
     function drawNextFrame(canvas, ctx) {
@@ -729,6 +730,7 @@
                 var startPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
                 var endPoints = calculateWaveform(rect.width, rect.height, userComponents);
                 scheduleMorphicDraw(canvas, startPoints, endPoints, 'red', ctx);
+                lastModifiedHarmonic = null;
             }
         }
         else {
