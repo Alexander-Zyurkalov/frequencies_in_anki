@@ -357,17 +357,14 @@
         if (freq === 1) return "1";
 
         if (freq < 1) {
-            // For fractions, show as 1/n
-            const denominator = Math.round(1 / freq);
-            return `1/${denominator}`;
+            return formatOutputValue(freq);
         } else {
-            // For multipliers, round to 1 decimal place for cleaner display
-            return `${freq.toFixed(1)}`;
+            return formatOutputValue(freq,1);
         }
     }
 
-    function formatOutputValue(value) {
-        return value.toFixed(2).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
+    function formatOutputValue(value, precision = 2) {
+        return value.toFixed(precision).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
     }
 
     // Keep the showFloatingValue and updateAnswerString functions as they were
