@@ -584,13 +584,17 @@
     function createAdjustHandler(index, controlName, step) {
         return function() {
             var slider = document.querySelector(`[data-control="${controlName}"]`);
-            var currentSliderValue = parseFloat(slider.value);
-            var currentActualValue = convertFromSliderValue(controlName, currentSliderValue);
+            var currentActualValue = userComponents[index][controlName];
 
             // Calculate new actual value
             var newValue;
             if (controlName === 'freq') {
-                newValue = currentActualValue + (currentActualValue >= 1 ? step : 0.01);
+                newValue = currentActualValue + (currentActualValue >= 1 ? step : step/10);
+                if (step > 0) {
+                    const roundedValue = Number(newValue.toFixed(1));
+                    if (roundedValue > currentActualValue)
+                        newValue = roundedValue;
+                }
                 newValue = Math.min(Math.max(newValue, 0), 40);
             } else {
                 // For other controls, use linear adjustment
