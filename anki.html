@@ -26,6 +26,7 @@
         <button id="copyButton" class="copy-button">Copy</button>
     </div>
 </div>
+{{hint::hint}}
 {{type::frequencies}}
 
 <script>
@@ -168,7 +169,7 @@
         if (freq < 1) {
             return formatOutputValue(freq);
         } else {
-            return formatOutputValue(freq,1);
+            return formatOutputValue(freq, 1);
         }
     }
 
@@ -400,7 +401,7 @@
     }
 
     function createAdjustHandler(index, controlName, step) {
-        return function() {
+        return function () {
             var slider = document.querySelector(`[data-control="${controlName}"]`);
             var currentActualValue = userComponents[index][controlName];
 
@@ -443,7 +444,7 @@
     }
 
     function createSliderHandler(index, controlName) {
-        return function(event) {
+        return function (event) {
             var sliderValue = parseFloat(this.value);
             var newValue = convertFromSliderValue(controlName, sliderValue);
 
@@ -458,7 +459,7 @@
 
 
     function createSliderTouchEndHandler(index, controlName) {
-        return function(event) {
+        return function (event) {
             if (activeInteractions > 0) {
                 activeInteractions--;
                 if (activeInteractions === 0) {
@@ -488,9 +489,9 @@
     }
 
     function initializeCopyButton() {
-        document.getElementById('copyButton').onclick = function() {
+        document.getElementById('copyButton').onclick = function () {
             var text = document.getElementById('answerString').textContent;
-            navigator.clipboard.writeText(text).then(function() {
+            navigator.clipboard.writeText(text).then(function () {
                 var originalText = this.textContent;
                 this.textContent = 'Copied!';
                 setTimeout(() => {
@@ -523,7 +524,7 @@
         // So we'll draw lines at each 0.1 interval
         var canvasHeight = rect.height;
         var centerY = canvasHeight / 2;
-        var stepSize = (canvasHeight-20) / 20; // 20 steps for -1 to 1 in 0.1 increments
+        var stepSize = (canvasHeight - 20) / 20; // 20 steps for -1 to 1 in 0.1 increments
 
         for (var i = -10; i <= 10; i++) {
             var y = centerY + (i * stepSize);
@@ -538,7 +539,7 @@
     }
 
     function calculateWaveform(width, height, comps) {
-        var scale = (height/2 - 20);
+        var scale = (height / 2 - 20);
         var points = [];
         for (var x = 0; x < width; x++) {
             points[x] = 0;
@@ -555,7 +556,7 @@
             }
         }
         for (var x = 0; x < width; x++) {
-            points[x] = points[x] * scale + height/2;
+            points[x] = points[x] * scale + height / 2;
         }
         return points;
     }
@@ -735,8 +736,7 @@
                 redPoints = userComponentsPoints;
                 lastModifiedHarmonic = null;
             }
-        }
-        else {
+        } else {
             if (redPoints === null) {
                 redPoints = calculateWaveform(rect.width, rect.height, [{amp: 0, freq: 0, phase: 0}]);
             }
@@ -744,6 +744,7 @@
             redPoints = userComponentsPoints;
         }
     }
+
     function redrawAll() {
         var targetCanvas = document.getElementById('targetCanvas');
         var ctx = setupCanvas(targetCanvas);
@@ -776,7 +777,7 @@
 
         // Handle window resize
         var resizeTimer = null;
-        window.onresize = function() {
+        window.onresize = function () {
             if (resizeTimer) {
                 clearTimeout(resizeTimer);
             }
