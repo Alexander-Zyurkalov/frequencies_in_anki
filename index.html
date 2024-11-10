@@ -370,7 +370,10 @@
     }
 
     function modifyUserComponents(index, property, value) {
-        userComponents[index][property] = value;
+        if (property === 'freq')
+            userComponents[index][property] = Number(formatFrequency(value));
+        else
+            userComponents[index][property] = Number(formatOutputValue(value));
         drawAttempt();
         updateAnswerString();
         showFloatingValue(value, null, property);
