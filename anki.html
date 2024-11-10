@@ -29,7 +29,7 @@
 
 <script>
     // Parse frequency string
-    var frequencyString = '{{frequencies}}';
+    var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
@@ -158,17 +158,18 @@
 
     // Helper function to format frequency for display
     function formatFrequency(freq) {
-        if (freq === 0) return "0×";
-        if (freq === 1) return "1×";
+        if (freq === 0) return "0";
+        if (freq === 1) return "1";
 
         if (freq < 1) {
-            // For fractions, show as 1/n
-            const denominator = Math.round(1 / freq);
-            return `1/${denominator}×`;
+            return formatOutputValue(freq);
         } else {
-            // For multipliers, round to 1 decimal place for cleaner display
-            return `${freq.toFixed(1)}×`;
+            return formatOutputValue(freq,1);
         }
+    }
+
+    function formatOutputValue(value, precision = 2) {
+        return value.toFixed(precision).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
     }
 
     // Keep the showFloatingValue and updateAnswerString functions as they were
@@ -186,7 +187,7 @@
         if (type === 'freq') {
             displayValue = formatFrequency(value);
         } else if (type === 'amp' || type === 'phase') {
-            displayValue = value.toFixed(2);
+            displayValue = formatOutputValue(value);
         }
 
         indicator.textContent = displayValue;
@@ -389,14 +390,21 @@
     function createAdjustHandler(index, controlName, step) {
         return function() {
             var slider = document.querySelector(`[data-control="${controlName}"]`);
-            var currentSliderValue = parseFloat(slider.value);
-            var currentActualValue = convertFromSliderValue(controlName, currentSliderValue);
+            var currentActualValue = userComponents[index][controlName];
 
             // Calculate new actual value
             var newValue;
             if (controlName === 'freq') {
-                // For frequency, adjust by multiplying/dividing by a factor
-                newValue = currentActualValue * (step > 0 ? 1.1 : 0.9);
+                var lStep = step;
+                var round = 2;
+                if (currentActualValue > 1) {
+                    lStep = lStep * 10;
+                    round = 1;
+                }
+                newValue = currentActualValue + lStep;
+                const roundedValue = Number(newValue.toFixed(round));
+                if (lStep > 0 && roundedValue > currentActualValue || lStep < 0 && roundedValue > currentActualValue)
+                    newValue = roundedValue;
                 newValue = Math.min(Math.max(newValue, 0), 40);
             } else {
                 // For other controls, use linear adjustment
@@ -418,7 +426,7 @@
                     drawAttempt();
                     playAttemptSound(); // Play sound when finished adjusting
                 }
-            }, 500);
+            }, 2000);
         };
     }
 
@@ -450,13 +458,12 @@
     }
 
     function updateAnswerString() {
-        var answer = userComponents.map(comp => {
-            let freq = comp.freq === 0 ? "0" : comp.freq.toFixed(3);
-            let amp = comp.amp.toFixed(2);
-            let phase = comp.phase.toFixed(2);
+        document.getElementById('answerString').textContent = userComponents.map(comp => {
+            let freq = formatFrequency(comp.freq);
+            let amp = formatOutputValue(comp.amp);
+            let phase = formatOutputValue(comp.phase);
             return `${freq} ${amp} ${phase}`;
         }).join(', ');
-        document.getElementById('answerString').textContent = answer;
     }
 
     function initializeCopyButton() {
