@@ -26,11 +26,13 @@
         <button id="copyButton" class="copy-button">Copy</button>
     </div>
 </div>
+{{type::frequencies}}
 
 <script>
     // Parse frequency string
-    var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
-    var components = [];
+    var frequencyString = "{{frequencies}}";
+    var answerString = "1 1 0";
+
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
     var numCycles = 2;
@@ -200,27 +202,30 @@
         }, 1500);
     }
 
-    function initializeComponents() {
-        var compStrings = frequencyString.split(',');
+
+    function prepareComponent(compStrings) {
+        var theComponents = []
         for (var i = 0; i < compStrings.length; i++) {
             var parts = compStrings[i].trim().split(' ');
-            components.push({
+            theComponents.push({
                 freq: parseFloat(parts[0]),
                 amp: parseFloat(parts[1]),
                 phase: parseFloat(parts[2])
             });
-            var userComponentDefaultValues = {
-                freq: 0,
-                amp: 0,
-                phase: 0
-            };
-            if (i === 0) {
-                userComponentDefaultValues.freq = 1;
-                userComponentDefaultValues.amp = 1;
-                userComponentDefaultValues.phase = 0;
-            }
-            userComponents.push(userComponentDefaultValues);
         }
+        return theComponents;
+    }
+
+    function initializeComponents() {
+        var compStrings = frequencyString.split(',');
+        var userCompStrings = answerString.split(',');
+        if (userCompStrings.length < compStrings.length) {
+            for (var i = userCompStrings.length; i < compStrings.length; i++) {
+                userCompStrings.push("0 0 0");
+            }
+        }
+        components = prepareComponent(compStrings);
+        userComponents = prepareComponent(userCompStrings);
     }
 
     function setupCanvas(canvas) {
@@ -457,13 +462,22 @@
         };
     }
 
+
     function updateAnswerString() {
-        document.getElementById('answerString').textContent = userComponents.map(comp => {
+        const answerStr = userComponents.map(comp => {
             let freq = formatFrequency(comp.freq);
             let amp = formatOutputValue(comp.amp);
             let phase = formatOutputValue(comp.phase);
             return `${freq} ${amp} ${phase}`;
         }).join(', ');
+
+        document.getElementById('answerString').textContent = answerStr;
+
+        // Update typeans if it exists
+        const typeans = document.getElementById('typeans');
+        if (typeans) {
+            typeans.value = answerStr;
+        }
     }
 
     function initializeCopyButton() {
@@ -766,6 +780,3 @@
     // Start the application
     init();
 </script>
-</body>
-</html>
-<div>{{type::frequencies}}</div>
