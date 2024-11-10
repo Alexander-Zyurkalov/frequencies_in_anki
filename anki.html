@@ -37,8 +37,10 @@
     var lastModifiedHarmonic = null;
     var numCycles = 2;
 
-    var userComponents = [];
-    var redPoints = null;
+    if (!document.getElementById('answer')) {
+        var userComponents = [];
+        var redPoints = null;
+    }
 
     var activeIndicator = null;
     var indicatorTimeout = null;
@@ -218,14 +220,19 @@
 
     function initializeComponents() {
         var compStrings = frequencyString.split(',');
-        var userCompStrings = answerString.split(',');
-        if (userCompStrings.length < compStrings.length) {
-            for (var i = userCompStrings.length; i < compStrings.length; i++) {
-                userCompStrings.push("0 0 0");
+        if (userComponents.length === 0 || !document.getElementById('answer')) {
+            console.log('Reinitializing user components');
+            console.log(document.getElementById('answer'));
+            console.log("userComponents.length = " + userComponents.length);
+            var userCompStrings = answerString.split(',');
+            if (userCompStrings.length < compStrings.length) {
+                for (var i = userCompStrings.length; i < compStrings.length; i++) {
+                    userCompStrings.push("0 0 0");
+                }
             }
+            userComponents = prepareComponent(userCompStrings);
         }
         components = prepareComponent(compStrings);
-        userComponents = prepareComponent(userCompStrings);
     }
 
     function setupCanvas(canvas) {
