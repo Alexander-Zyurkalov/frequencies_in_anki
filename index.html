@@ -527,7 +527,7 @@
         div.appendChild(title);
 
         var controls = [
-            {name: 'freq', label: 'F', max: 1, step: 0.1}, // max is now 1 for exponential scaling
+            {name: 'freq', label: 'F', max: 1, step: 0.001}, // max is now 1 for exponential scaling
             {name: 'amp', label: 'A', max: 1, min: -1, step: 0.01}, // amplitude now goes from -1 to 1
             {name: 'phase', label: 'P', max: 1, step: 0.01}
         ];
@@ -589,12 +589,11 @@
             // Calculate new actual value
             var newValue;
             if (controlName === 'freq') {
+                step = step > 0 ? 0.1 : -0.1;
                 newValue = currentActualValue + (currentActualValue >= 1 ? step : step/10);
-                if (step > 0) {
-                    const roundedValue = Number(newValue.toFixed(1));
-                    if (roundedValue > currentActualValue)
-                        newValue = roundedValue;
-                }
+                const roundedValue = Number(newValue.toFixed(1));
+                if (step > 0 && roundedValue > currentActualValue || step < 0 && roundedValue > currentActualValue)
+                    newValue = roundedValue;
                 newValue = Math.min(Math.max(newValue, 0), 40);
             } else {
                 // For other controls, use linear adjustment
