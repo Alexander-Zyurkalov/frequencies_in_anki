@@ -353,17 +353,21 @@
 
     // Helper function to format frequency for display
     function formatFrequency(freq) {
-        if (freq === 0) return "0×";
-        if (freq === 1) return "1×";
+        if (freq === 0) return "0";
+        if (freq === 1) return "1";
 
         if (freq < 1) {
             // For fractions, show as 1/n
             const denominator = Math.round(1 / freq);
-            return `1/${denominator}×`;
+            return `1/${denominator}`;
         } else {
             // For multipliers, round to 1 decimal place for cleaner display
-            return `${freq.toFixed(1)}×`;
+            return `${freq.toFixed(1)}`;
         }
+    }
+
+    function formatOutputValue(value) {
+        return value.toFixed(2).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
     }
 
     // Keep the showFloatingValue and updateAnswerString functions as they were
@@ -381,7 +385,7 @@
         if (type === 'freq') {
             displayValue = formatFrequency(value);
         } else if (type === 'amp' || type === 'phase') {
-            displayValue = value.toFixed(2);
+            displayValue = formatOutputValue(value);
         }
 
         indicator.textContent = displayValue;
@@ -647,13 +651,12 @@
     }
 
     function updateAnswerString() {
-        var answer = userComponents.map(comp => {
-            let freq = comp.freq === 0 ? "0" : comp.freq.toFixed(3);
-            let amp = comp.amp.toFixed(2);
-            let phase = comp.phase.toFixed(2);
+        document.getElementById('answerString').textContent = userComponents.map(comp => {
+            let freq = formatFrequency(comp.freq);
+            let amp = formatOutputValue(comp.amp);
+            let phase = formatOutputValue(comp.phase);
             return `${freq} ${amp} ${phase}`;
         }).join(', ');
-        document.getElementById('answerString').textContent = answer;
     }
 
     function initializeCopyButton() {
