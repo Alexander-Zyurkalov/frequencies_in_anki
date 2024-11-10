@@ -528,7 +528,7 @@
         div.appendChild(title);
 
         var controls = [
-            {name: 'freq', label: 'F', max: 1, step: 0.001}, // max is now 1 for exponential scaling
+            {name: 'freq', label: 'F', max: 1, step: 0.01}, // max is now 1 for exponential scaling
             {name: 'amp', label: 'A', max: 1, min: -1, step: 0.01}, // amplitude now goes from -1 to 1
             {name: 'phase', label: 'P', max: 1, step: 0.01}
         ];
@@ -590,10 +590,15 @@
             // Calculate new actual value
             var newValue;
             if (controlName === 'freq') {
-                step = step > 0 ? 0.1 : -0.1;
-                newValue = currentActualValue + (currentActualValue >= 1 ? step : step/10);
-                const roundedValue = Number(newValue.toFixed(1));
-                if (step > 0 && roundedValue > currentActualValue || step < 0 && roundedValue > currentActualValue)
+                var lStep = step;
+                var round = 2;
+                if (currentActualValue > 1) {
+                    lStep = lStep * 10;
+                    round = 1;
+                }
+                newValue = currentActualValue + lStep;
+                const roundedValue = Number(newValue.toFixed(round));
+                if (lStep > 0 && roundedValue > currentActualValue || lStep < 0 && roundedValue > currentActualValue)
                     newValue = roundedValue;
                 newValue = Math.min(Math.max(newValue, 0), 40);
             } else {
@@ -616,7 +621,7 @@
                     drawAttempt();
                     playAttemptSound(); // Play sound when finished adjusting
                 }
-            }, 500);
+            }, 2000);
         };
     }
 
