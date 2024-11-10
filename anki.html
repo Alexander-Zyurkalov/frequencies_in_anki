@@ -512,7 +512,7 @@
         var rect = canvas.getBoundingClientRect();
         var cycleWidth = rect.width / numCycles;
 
-        // Set initial grid style
+        // Set initial grid style for background grid
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 1;
 
@@ -527,22 +527,30 @@
         }
 
         // Draw horizontal amplitude lines
-        // The canvas height represents amplitudes from -1 to 1
-        // So we'll draw lines at each 0.1 interval
         var canvasHeight = rect.height;
         var centerY = canvasHeight / 2;
         var stepSize = (canvasHeight - 20) / 20; // 20 steps for -1 to 1 in 0.1 increments
 
         for (var i = -10; i <= 10; i++) {
-            var y = centerY + (i * stepSize);
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(rect.width, y);
-            ctx.stroke();
+            if (i !== 0) {  // Skip the centre line here, we'll draw it separately
+                var y = centerY + (i * stepSize);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(rect.width, y);
+                ctx.stroke();
+            }
         }
 
         // Reset dash setting
         ctx.setLineDash([]);
+
+        // Draw the centre line (x-axis) with a different style
+        ctx.strokeStyle = '#c8c8c8';  // Darker grey for the centre line
+        ctx.lineWidth = 2;  // Thicker line
+        ctx.beginPath();
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(rect.width, centerY);
+        ctx.stroke();
     }
 
     function calculateWaveform(width, height, comps) {
