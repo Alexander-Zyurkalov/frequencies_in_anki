@@ -44,7 +44,7 @@
     var indicatorTimeout = null;
     var activeInteractions = 0;
 
-    const animationState = {
+    var animationState = {
         queues: {
             'red': {
                 frames: [],
@@ -66,9 +66,9 @@
         stepTime: 16
     };
 
-    let audioContext;
-    let isAudioInitialized = false;
-    let isPlaying = false;
+    var audioContext;
+    var isAudioInitialized = false;
+    var isPlaying = false;
 
     // Initialize audio context with user interaction
     function initializeAudioContext() {
@@ -778,5 +778,7 @@
     }
 
     // Start the application
+    console.log('Script starting...');
     init();
+    console.log('Script finished initialization');
 </script>
