@@ -313,13 +313,20 @@
             // Set amplitude
             gainNode.gain.value = Math.abs(comp.amp) * 0.25; // Scale down amplitude for comfortable listening
 
+            // Apply phase shift using a delay node
+            const phaseShiftDelay = audioContext.createDelay();
+            const phasePeriod = 1 / (baseFreq * comp.freq); // Period of the wave in seconds
+            const phaseDelay = (comp.phase * phasePeriod); // Convert phase (0-1) to time delay
+            phaseShiftDelay.delayTime.value = phaseDelay;
+
             // Apply fade in/out to avoid clicks
             gainNode.gain.setValueAtTime(0, startTime);
             gainNode.gain.linearRampToValueAtTime(Math.abs(comp.amp) * 0.25, startTime + 0.01);
             gainNode.gain.linearRampToValueAtTime(0, endTime - 0.01);
 
-            // Connect nodes
-            oscillator.connect(gainNode);
+            // Connect nodes with phase shift
+            oscillator.connect(phaseShiftDelay);
+            phaseShiftDelay.connect(gainNode);
             gainNode.connect(audioContext.destination);
 
             // Start and stop the oscillator
