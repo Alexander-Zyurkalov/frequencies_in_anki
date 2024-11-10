@@ -246,6 +246,7 @@
 <script>
     // Parse frequency string
     var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
+    var answerString = "1 1 0";
     var components = [];
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
@@ -416,27 +417,30 @@
         }, 1500);
     }
 
-    function initializeComponents() {
-        var compStrings = frequencyString.split(',');
+
+    function prepareComponent(compStrings) {
+        var theComponents = []
         for (var i = 0; i < compStrings.length; i++) {
             var parts = compStrings[i].trim().split(' ');
-            components.push({
+            theComponents.push({
                 freq: parseFloat(parts[0]),
                 amp: parseFloat(parts[1]),
                 phase: parseFloat(parts[2])
             });
-            var userComponentDefaultValues = {
-                freq: 0,
-                amp: 0,
-                phase: 0
-            };
-            if (i === 0) {
-                userComponentDefaultValues.freq = 1;
-                userComponentDefaultValues.amp = 1;
-                userComponentDefaultValues.phase = 0;
-            }
-            userComponents.push(userComponentDefaultValues);
         }
+        return theComponents;
+    }
+    
+    function initializeComponents() {
+        var compStrings = frequencyString.split(',');
+        var userCompStrings = answerString.split(',');
+        if (userCompStrings.length < compStrings.length) {
+            for (var i = userCompStrings.length; i < compStrings.length; i++) {
+                userCompStrings.push("0 0 0");
+            }
+        }
+        components = prepareComponent(compStrings);
+        userComponents = prepareComponent(userCompStrings);
     }
 
     function setupCanvas(canvas) {
