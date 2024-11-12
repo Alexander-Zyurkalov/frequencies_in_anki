@@ -47,7 +47,8 @@
     var components = [];
 
     var audioHandler = new AudioHandler()
-    var waveformRenderer = new WaveformRenderer();
+    const targetRenderer = new WaveformRenderer();
+    const attemptRenderer = new WaveformRenderer();
 
     if (!document.getElementById('answer')) {
         var userComponents = [];
@@ -130,7 +131,7 @@
     function updateCycles() {
         numCycles = parseFloat(this.value);
         document.getElementById('cyclesValue').textContent = numCycles.toFixed(0);
-        waveformRenderer.redrawAll(numCycles, components);
+        targetRenderer.redrawAll(numCycles, components, document.getElementById("targetCanvas"));
         drawAttempt();
     }
 
@@ -377,40 +378,40 @@
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
-        var ctx = waveformRenderer.setupCanvas(canvas);
+        var ctx = attemptRenderer.setupCanvas(canvas);
         var rect = canvas.getBoundingClientRect();
 
-        const userComponentsPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, userComponents, numCycles);
+        const userComponentsPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, userComponents, numCycles);
         if (lastModifiedHarmonic !== null) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
 
             if (activeInteractions > 0) {
                 var withoutModifiedCompPoints =
-                    waveformRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
+                    attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
                 if (redPoints === null) {
                     redPoints = userComponentsPoints;
                 }
-                waveformRenderer.scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx, numCycles);
-                waveformRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx, numCycles);
                 redPoints = withoutModifiedCompPoints;
             } else if (activeInteractions === 0) {
                 if (redPoints === null) {
-                    redPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
+                    redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
                 }
-                waveformRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles);
                 redPoints = userComponentsPoints;
                 lastModifiedHarmonic = null;
             }
         } else {
             if (redPoints === null) {
-                redPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, [{
+                redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, [{
                     amp: 0,
                     freq: 0,
                     phase: 0
                 }], numCycles);
             }
-            waveformRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx, numCycles);
+            attemptRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx, numCycles);
             redPoints = userComponentsPoints;
         }
     }
@@ -427,7 +428,7 @@
         document.getElementById('nextComponent').onclick = navigateNext;
 
         updateComponentView();
-        waveformRenderer.redrawAll(numCycles, components);
+        targetRenderer.redrawAll(numCycles, components, document.getElementById("targetCanvas"));
         drawAttempt();
         updateAnswerString();
         initializeCopyButton();
@@ -439,7 +440,7 @@
                 clearTimeout(resizeTimer);
             }
             resizeTimer = setTimeout(() => {
-                waveformRenderer.redrawAll(numCycles, components);
+                targetRenderer.redrawAll(numCycles, components, document.getElementById("targetCanvas"));
                 drawAttempt();
             }, 250);
         };

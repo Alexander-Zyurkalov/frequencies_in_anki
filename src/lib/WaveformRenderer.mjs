@@ -252,8 +252,7 @@ class WaveformRenderer {
         }
     }
 
-    redrawAll(numCycles, components) {
-        var targetCanvas = document.getElementById('targetCanvas');
+    redrawAll(numCycles, components, targetCanvas) {
         var ctx = this.setupCanvas(targetCanvas);
         var rect = targetCanvas.getBoundingClientRect();
 
