@@ -2,8 +2,8 @@
     <div class="canvas-container">
         <div class="controls-container">
             <div class="cycles-control">
-                <label>Cycles: <span id="cyclesValue">2.0</span></label>
-                <input type="range" id="cyclesSlider" min="0.5" max="10" step="0.5" value="2" class="slider">
+                <label>Cycles: <span id="cyclesValue">2</span></label>
+                <input type="range" id="cyclesSlider" min="1" max="80" step="1" value="2" class="slider">
             </div>
         </div>
         <canvas id="targetCanvas" width="800" height="200"></canvas>
@@ -156,7 +156,7 @@
     }
 
     function modifyUserComponents(index, property, value) {
-        userComponents[index][property] = value;
+        userComponents[index][property] = Number(formatOutputValue(value));
         drawAttempt();
         updateAnswerString();
         showFloatingValue(value, null, property);
@@ -169,17 +169,6 @@
     }
 
     // Helper function to format frequency for display
-    function formatFrequency(freq) {
-        if (freq === 0) return "0";
-        if (freq === 1) return "1";
-
-        if (freq < 1) {
-            return formatOutputValue(freq);
-        } else {
-            return formatOutputValue(freq, 1);
-        }
-    }
-
     function formatOutputValue(value, precision = 2) {
         return value.toFixed(precision).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
     }
@@ -195,14 +184,7 @@
         const answerContainer = document.querySelector('.navigation-controls');
         answerContainer.appendChild(indicator);
 
-        let displayValue;
-        if (type === 'freq') {
-            displayValue = formatFrequency(value);
-        } else if (type === 'amp' || type === 'phase') {
-            displayValue = formatOutputValue(value);
-        }
-
-        indicator.textContent = displayValue;
+        indicator.textContent = formatOutputValue(value);
         indicator.style.opacity = '1';
         activeIndicator = indicator;
 
@@ -257,7 +239,7 @@
 
     function updateCycles() {
         numCycles = parseFloat(this.value);
-        document.getElementById('cyclesValue').textContent = numCycles.toFixed(1);
+        document.getElementById('cyclesValue').textContent = numCycles.toFixed(0);
         redrawAll();
     }
 
@@ -417,10 +399,6 @@
             if (controlName === 'freq') {
                 var lStep = step;
                 var round = 2;
-                if (currentActualValue > 1) {
-                    lStep = lStep * 10;
-                    round = 1;
-                }
                 newValue = currentActualValue + lStep;
                 const roundedValue = Number(newValue.toFixed(round));
                 if (lStep > 0 && roundedValue > currentActualValue || lStep < 0 && roundedValue > currentActualValue)
@@ -480,7 +458,7 @@
 
     function updateAnswerString() {
         const answerStr = userComponents.map(comp => {
-            let freq = formatFrequency(comp.freq);
+            let freq = formatOutputValue(comp.freq);
             let amp = formatOutputValue(comp.amp);
             let phase = formatOutputValue(comp.phase);
             return `${freq} ${amp} ${phase}`;
