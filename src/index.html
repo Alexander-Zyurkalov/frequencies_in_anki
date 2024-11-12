@@ -243,7 +243,8 @@
     </div>
 </div>
 
-<script>
+<script type="module">
+    import {AudioHandler} from './lib/AudioHandler.mjs';
 
     // Parse frequency string
     var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
@@ -252,6 +253,8 @@
     var currentComponentIndex = 0;
     var lastModifiedHarmonic = null;
     var numCycles = 2;
+    var components = [];
+    var audioHandler = new AudioHandler()
 
     if (!document.getElementById('answer')) {
         var userComponents = [];
@@ -885,7 +888,7 @@
     // Initialize everything
     function init() {
         initializeComponents();
-        initializeAudioHandlers();
+        audioHandler.initializeAudioHandlers();
 
         document.getElementById('cyclesSlider').onchange = updateCycles;
         document.getElementById('cyclesSlider').oninput = updateCycles;
