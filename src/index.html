@@ -888,7 +888,8 @@
     // Initialize everything
     function init() {
         initializeComponents();
-        audioHandler.initializeAudioHandlers();
+        audioHandler.initializeAudioHandlers(document.getElementById("targetCanvas"), components);
+        audioHandler.initializeAudioHandlers(document.getElementById('attemptCanvas'), userComponents);
 
         document.getElementById('cyclesSlider').onchange = updateCycles;
         document.getElementById('cyclesSlider').oninput = updateCycles;

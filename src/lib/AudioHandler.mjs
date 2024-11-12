@@ -54,10 +54,11 @@ class AudioHandler {
     }
 
     // Function to play sound for target waveform
-    playTargetSound() {
+    playWaveform(components) {
         if (this.isPlaying) return;
         this.isPlaying = true;
 
+        console.log(components);
         this.initializeAudioContext();
         this.createOscillators(components, 3);
 
@@ -66,25 +67,8 @@ class AudioHandler {
         }, 3000);
     }
 
-    // Function to play sound for attempt waveform
-    playAttemptSound() {
-        if (this.isPlaying) return;
-        this.isPlaying = true;
-
-        this.initializeAudioContext();
-        this.createOscillators(userComponents, 3);
-
-        setTimeout(() => {
-            this.isPlaying = false;
-        }, 3000);
-    }
-
-    initializeAudioHandlers() {
-        const targetCanvas = document.getElementById('targetCanvas');
-        const attemptCanvas = document.getElementById('attemptCanvas');
-
-        targetCanvas.addEventListener('click', this.playTargetSound.bind(this));
-        attemptCanvas.addEventListener('click', this.playAttemptSound.bind(this));
+    initializeAudioHandlers(uiElement, components) {
+        uiElement.addEventListener('click', () => this.playWaveform(components));
     }
 }
 
