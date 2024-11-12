@@ -58,7 +58,6 @@ class AudioHandler {
         if (this.isPlaying) return;
         this.isPlaying = true;
 
-        console.log(components);
         this.initializeAudioContext();
         this.createOscillators(components, 3);
 
