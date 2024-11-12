@@ -244,8 +244,8 @@
 </div>
 
 <script type="module">
-    import {AudioHandler} from './lib/AudioHandler';
-    import  {WaveformRenderer} from './lib/WaveformRenderer'
+    import {AudioHandler} from './lib/AudioHandler.mjs';
+    import  {WaveformRenderer} from './lib/WaveformRenderer.mjs'
 
     // Parse frequency string
     var frequencyString = "1 1 0, 2 0.5 1, 2.5 0.5 1, 3 0.3 0.5, 4 0.25 0.75, 5 0.2 0.25";
@@ -340,7 +340,8 @@
     function updateCycles() {
         numCycles = parseFloat(this.value);
         document.getElementById('cyclesValue').textContent = numCycles.toFixed(0);
-        redrawAll();
+        waveformRenderer.redrawAll(numCycles, components);
+        drawAttempt();
     }
 
     function navigatePrev() {
@@ -522,7 +523,7 @@
                 activeInteractions--;
                 if (activeInteractions === 0) {
                     drawAttempt();
-                    playAttemptSound(); // Play sound when finished adjusting
+                    audioHandler.playWaveform(userComponents); // Play sound when finished adjusting
                 }
             }, 2000);
         };
@@ -548,7 +549,7 @@
                 activeInteractions--;
                 if (activeInteractions === 0) {
                     drawAttempt();
-                    playAttemptSound(); // Play sound when finished adjusting
+                    audioHandler.playWaveform(userComponents); // Play sound when finished adjusting
                 }
             }
         };
@@ -586,35 +587,40 @@
 
     function drawAttempt() {
         var canvas = document.getElementById('attemptCanvas');
-        var ctx = setupCanvas(canvas);
+        var ctx = waveformRenderer.setupCanvas(canvas);
         var rect = canvas.getBoundingClientRect();
 
-        const userComponentsPoints = calculateWaveform(rect.width, rect.height, userComponents);
+        const userComponentsPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, userComponents, numCycles);
         if (lastModifiedHarmonic !== null) {
             var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(userComponents));
             userComponentsWithoutTheModifiedOne[lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
 
             if (activeInteractions > 0) {
-                var withoutModifiedCompPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                var withoutModifiedCompPoints =
+                    waveformRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
                 if (redPoints === null) {
                     redPoints = userComponentsPoints;
                 }
-                scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx);
-                scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx);
+                waveformRenderer.scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx, numCycles);
+                waveformRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx, numCycles);
                 redPoints = withoutModifiedCompPoints;
             } else if (activeInteractions === 0) {
                 if (redPoints === null) {
-                    redPoints = calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne);
+                    redPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
                 }
-                scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx);
+                waveformRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles);
                 redPoints = userComponentsPoints;
                 lastModifiedHarmonic = null;
             }
         } else {
             if (redPoints === null) {
-                redPoints = calculateWaveform(rect.width, rect.height, [{amp: 0, freq: 0, phase: 0}]);
+                redPoints = waveformRenderer.calculateWaveform(rect.width, rect.height, [{
+                    amp: 0,
+                    freq: 0,
+                    phase: 0
+                }], numCycles);
             }
-            scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx);
+            waveformRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx, numCycles);
             redPoints = userComponentsPoints;
         }
     }
@@ -631,7 +637,8 @@
         document.getElementById('nextComponent').onclick = navigateNext;
 
         updateComponentView();
-        waveformRenderer.redrawAll();
+        waveformRenderer.redrawAll(numCycles, components);
+        drawAttempt();
         updateAnswerString();
         initializeCopyButton();
 
@@ -641,7 +648,10 @@
             if (resizeTimer) {
                 clearTimeout(resizeTimer);
             }
-            resizeTimer = setTimeout(redrawAll, 250);
+            resizeTimer = setTimeout(() => {
+                waveformRenderer.redrawAll(numCycles, components);
+                drawAttempt();
+            }, 250);
         };
     }
 

@@ -62,7 +62,7 @@ class WaveformRenderer {
         return ctx;
     }
 
-    drawGridLines(canvas, ctx) {
+    drawGridLines(canvas, ctx, numCycles) {
         var rect = canvas.getBoundingClientRect();
         var cycleWidth = rect.width / numCycles;
 
@@ -107,7 +107,7 @@ class WaveformRenderer {
         ctx.stroke();
     }
 
-    calculateWaveform(width, height, comps) {
+    calculateWaveform(width, height, comps, numCycles) {
         var scale = (height / 2 - 20);
         var points = [];
         for (var x = 0; x < width; x++) {
@@ -168,12 +168,13 @@ class WaveformRenderer {
 
         return frames;
     }
-     scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx) {
+
+    scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx, numCycles) {
         const duration = 1000; // Animation duration in milliseconds
         const steps = Math.floor(duration / this.animationState.stepTime);
         var newFrames;
 
-        if (this.arePointsEqual(startPoints, endPoints)) {
+        if (arePointsEqual(startPoints, endPoints)) {
             newFrames = [{
                 points: JSON.parse(JSON.stringify(startPoints)),
                 color: color
@@ -196,7 +197,7 @@ class WaveformRenderer {
         // If not already animating, start the animation loop
         if (!this.animationState.isAnimating) {
             this.animationState.isAnimating = true;
-            requestAnimationFrame(() => this.drawNextFrame(canvas, ctx));
+            requestAnimationFrame(() => this.drawNextFrame(canvas, ctx, numCycles));
         }
     }
 
@@ -208,7 +209,7 @@ class WaveformRenderer {
         });
     }
 
-    drawNextFrame(canvas, ctx) {
+    drawNextFrame(canvas, ctx, numCycles) {
         const activeQueues = Object.keys(this.animationState.queues).filter(color =>
             this.animationState.queues[color].frames.length > 0
         );
@@ -222,7 +223,7 @@ class WaveformRenderer {
 
         // Clear canvas and redraw grid
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        this.drawGridLines(canvas, ctx);
+        this.drawGridLines(canvas, ctx, numCycles);
 
         let shouldContinue = false;
 
@@ -244,27 +245,26 @@ class WaveformRenderer {
         // Continue animation if any queue still has frames
         if (shouldContinue) {
             setTimeout(() => {
-                requestAnimationFrame(() => this.drawNextFrame(canvas, ctx));
+                requestAnimationFrame(() => this.drawNextFrame(canvas, ctx, numCycles));
             }, this.animationState.stepTime);
         } else {
             this.stopAnimation();
         }
     }
 
-    redrawAll() {
+    redrawAll(numCycles, components) {
         var targetCanvas = document.getElementById('targetCanvas');
         var ctx = this.setupCanvas(targetCanvas);
         var rect = targetCanvas.getBoundingClientRect();
 
         ctx.clearRect(0, 0, rect.width, rect.height);
-        this.drawGridLines(targetCanvas, ctx);
+        this.drawGridLines(targetCanvas, ctx, numCycles);
 
-        var points = this.calculateWaveform(rect.width, rect.height, this.components);
+        var points = this.calculateWaveform(rect.width, rect.height, components, numCycles);
         this.drawWaveform(targetCanvas, points, 'blue', ctx);
 
         this.stopAnimation();
-        this.drawAttempt();
     }
 }
 
-export default WaveformRenderer;
+export {WaveformRenderer};
