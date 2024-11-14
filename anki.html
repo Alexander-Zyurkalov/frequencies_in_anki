@@ -1,0 +1,822 @@
+<div class="main-container">
+    <div class="canvas-container">
+        <div class="controls-container">
+            <div class="cycles-control">
+                <label>Cycles: <span id="cyclesValue">2</span></label>
+                <input type="range" id="cyclesSlider" min="1" max="80" step="1" value="2" class="slider">
+            </div>
+        </div>
+        <canvas id="targetCanvas" width="800" height="200"></canvas>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="attemptCanvas" width="800" height="200"></canvas>
+    </div>
+
+    <div class="navigation-controls">
+        <button id="prevComponent" class="nav-button">&lt; Previous</button>
+        <span id="componentNumber">Component 1 of X</span>
+        <button id="nextComponent" class="nav-button">Next &gt;</button>
+    </div>
+
+    <div id="sliderContainer"></div>
+
+    <div class="answer-container">
+        <span id="answerString"></span>
+        <button id="copyButton" class="copy-button">Copy</button>
+    </div>
+</div>
+{{hint::hint}}
+{{type::frequencies}}
+
+<script>
+    class AudioHandler {
+        constructor() {
+            this.audioContext = null;
+            this.isAudioInitialized = false;
+            this.isPlaying = false;
+        }
+
+        // Initialize audio context with user interaction
+        initializeAudioContext() {
+            if (!this.isAudioInitialized) {
+                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.isAudioInitialized = true;
+            }
+        }
+
+        // Function to create oscillators for each component
+        createOscillators(components, duration) {
+            const baseFreq = 220; // A3 note as base frequency
+            const startTime = this.audioContext.currentTime;
+            const endTime = startTime + duration;
+
+            components.forEach(comp => {
+                if (comp.freq === 0 || comp.amp === 0) return; // Skip components with 0 frequency or amplitude
+
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+
+                // Set frequency based on the component's frequency multiplier
+                oscillator.frequency.value = baseFreq * comp.freq;
+
+                // Set amplitude
+                gainNode.gain.value = Math.abs(comp.amp) * 0.25; // Scale down amplitude for comfortable listening
+
+                // Apply phase shift using a delay node
+                const phaseShiftDelay = this.audioContext.createDelay();
+                const phasePeriod = 1 / (baseFreq * comp.freq); // Period of the wave in seconds
+                const phaseDelay = (comp.phase * phasePeriod); // Convert phase (0-1) to time delay
+                phaseShiftDelay.delayTime.value = phaseDelay;
+
+                // Apply fade in/out to avoid clicks
+                gainNode.gain.setValueAtTime(0, startTime);
+                gainNode.gain.linearRampToValueAtTime(Math.abs(comp.amp) * 0.25, startTime + 0.01);
+                gainNode.gain.linearRampToValueAtTime(0, endTime - 0.01);
+
+                // Connect nodes with phase shift
+                oscillator.connect(phaseShiftDelay);
+                phaseShiftDelay.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+
+                // Start and stop the oscillator
+                oscillator.start(startTime);
+                oscillator.stop(endTime);
+            });
+        }
+
+        // Function to play sound for target waveform
+        playWaveform(components) {
+            if (this.isPlaying) return;
+            this.isPlaying = true;
+
+            this.initializeAudioContext();
+            this.createOscillators(components, 3);
+
+            setTimeout(() => {
+                this.isPlaying = false;
+            }, 3000);
+        }
+
+        initializeAudioHandlers(uiElement, components) {
+            uiElement.addEventListener('click', () => this.playWaveform(components));
+        }
+    }
+    class ComponentManager {
+        constructor() {
+            this.currentComponentIndex = 0;
+            this.userComponents = [];
+            this.components = [];
+            this.activeInteractions = 0;
+            this.activeIndicator = null;
+            this.indicatorTimeout = null;
+        }
+
+        initializeComponents(frequencyString, answerString) {
+            const compStrings = frequencyString.split(',');
+            if (this.userComponents.length === 0 || !document.getElementById('answer')) {
+                const userCompStrings = answerString.split(',');
+                if (userCompStrings.length < compStrings.length) {
+                    for (let i = userCompStrings.length; i < compStrings.length; i++) {
+                        userCompStrings.push("0 0 0");
+                    }
+                }
+                this.userComponents = this.prepareComponent(userCompStrings);
+            }
+            this.components = this.prepareComponent(compStrings);
+        }
+
+        prepareComponent(compStrings) {
+            return compStrings.map(str => {
+                const parts = str.trim().split(' ');
+                return {
+                    freq: parseFloat(parts[0]),
+                    amp: parseFloat(parts[1]),
+                    phase: parseFloat(parts[2])
+                };
+            });
+        }
+
+        createComponent(index) {
+            const div = document.createElement('div');
+            div.className = 'component-container';
+
+            const title = document.createElement('div');
+            title.textContent = 'Component ' + (index + 1);
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '10px';
+            div.appendChild(title);
+
+            const controls = [
+                {name: 'freq', label: 'F', max: 1, step: 0.01},
+                {name: 'amp', label: 'A', max: 1, min: -1, step: 0.01},
+                {name: 'phase', label: 'P', max: 1, step: 0.01}
+            ];
+
+            controls.forEach(control => {
+                const container = document.createElement('div');
+                container.className = 'slider-container';
+
+                const row = document.createElement('div');
+                row.className = 'slider-row';
+
+                // Create buttons and slider
+                const minusBtn = this.createButton('-', () => this.adjustValue(index, control.name, -control.step));
+                const plusBtn = this.createButton('+', () => this.adjustValue(index, control.name, control.step));
+                const slider = this.createSlider(index, control);
+                const label = this.createLabel(control.label);
+
+                row.appendChild(minusBtn);
+                row.appendChild(label);
+                row.appendChild(slider);
+                row.appendChild(plusBtn);
+                container.appendChild(row);
+                div.appendChild(container);
+            });
+
+            return div;
+        }
+
+        createButton(text, onClick) {
+            const btn = document.createElement('button');
+            btn.className = 'adjust-button';
+            btn.textContent = text;
+            btn.onclick = onClick;
+            return btn;
+        }
+
+        createLabel(text) {
+            const label = document.createElement('span');
+            label.className = 'slider-label';
+            label.textContent = text + ':';
+            return label;
+        }
+
+        createSlider(index, control) {
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'slider';
+            slider.min = control.min || 0;
+            slider.max = control.max;
+            slider.step = control.step;
+            slider.value = this.convertToSliderValue(control.name, this.userComponents[index][control.name]);
+            slider.setAttribute('data-control', control.name);
+
+            // Add event listeners
+            slider.addEventListener('mousedown', this.createSliderHandler(index, control.name));
+            slider.addEventListener('touchstart', this.createSliderHandler(index, control.name));
+            slider.addEventListener('input', this.createSliderHandler(index, control.name));
+            slider.addEventListener('mouseup', this.createSliderTouchEndHandler(index, control.name));
+            slider.addEventListener('touchend', this.createSliderTouchEndHandler(index, control.name));
+
+            return slider;
+        }
+
+        convertToSliderValue(controlName, value) {
+            if (controlName === 'freq') {
+                if (value === 0) return 0;
+                if (value < 1) {
+                    return 0.25 * (3 * value - 1) / 2;
+                } else {
+                    return 0.25 + 0.75 * (Math.log2(value) / Math.log2(40));
+                }
+            }
+            return value;
+        }
+
+        convertFromSliderValue(controlName, sliderValue) {
+            if (controlName === 'freq') {
+                if (sliderValue === 0) return 0;
+                if (sliderValue < 0.25) {
+                    return (2 * sliderValue / 0.25 + 1) / 3;
+                } else {
+                    const normalizedSlider = (sliderValue - 0.25) / 0.75;
+                    return Math.pow(40, normalizedSlider);
+                }
+            }
+            return sliderValue;
+        }
+
+        formatOutputValue(value, precision = 2) {
+            return value.toFixed(precision).replace(/\.?0+$/, '').replace(/([,.])\$/, '');
+        }
+
+        createFloatingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'floating-indicator';
+            return indicator;
+        }
+
+        showFloatingValue(value, slider, type) {
+            if (this.activeIndicator) {
+                this.activeIndicator.remove();
+            }
+            clearTimeout(this.indicatorTimeout);
+
+            const indicator = this.createFloatingIndicator();
+            const answerContainer = document.querySelector('.navigation-controls');
+            answerContainer.appendChild(indicator);
+
+            indicator.textContent = this.formatOutputValue(value);
+            indicator.style.opacity = '1';
+            this.activeIndicator = indicator;
+
+            this.indicatorTimeout = setTimeout(() => {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 200);
+            }, 1500);
+        }
+
+
+        adjustValue(index, controlName, step) {
+            const slider = document.querySelector(`[data-control="${controlName}"]`);
+            const currentActualValue = this.userComponents[index][controlName];
+
+            let newValue;
+            if (controlName === 'freq') {
+                const lStep = step;
+                const round = 2;
+                newValue = currentActualValue + lStep;
+                const roundedValue = Number(newValue.toFixed(round));
+                if (lStep > 0 && roundedValue > currentActualValue || lStep < 0 && roundedValue < currentActualValue) {
+                    newValue = roundedValue;
+                }
+                newValue = Math.min(Math.max(newValue, 0), 40);
+            } else {
+                newValue = currentActualValue + step;
+                newValue = Math.min(Math.max(newValue, parseFloat(slider.min) || 0), parseFloat(slider.max));
+            }
+
+            slider.value = this.convertToSliderValue(controlName, newValue);
+            this.activeInteractions++;
+            this.lastModifiedHarmonic = index;
+            this.modifyUserComponents(index, controlName, newValue);
+
+            // Add delayed effects
+            setTimeout(() => {
+                this.activeInteractions--;
+                if (this.activeInteractions === 0) {
+                    if (this.onComponentUpdate) this.onComponentUpdate();
+                    if (this.onInteractionComplete) this.onInteractionComplete();
+                }
+            }, 2000);
+        }
+
+        createSliderHandler(index, controlName) {
+            return (event) => {
+                const sliderValue = parseFloat(event.target.value);
+                const newValue = this.convertFromSliderValue(controlName, sliderValue);
+
+                if (event.type === 'mousedown' || event.type === 'touchstart') {
+                    this.activeInteractions++;
+                    this.lastModifiedHarmonic = index;
+                }
+
+                this.modifyUserComponents(index, controlName, newValue);
+            };
+        }
+
+        createSliderTouchEndHandler(index, controlName) {
+            return () => {
+                if (this.activeInteractions > 0) {
+                    this.activeInteractions--;
+                    if (this.activeInteractions === 0) {
+                        // These callbacks should be set from outside
+                        if (this.onComponentUpdate) this.onComponentUpdate();
+                        if (this.onInteractionComplete) this.onInteractionComplete();
+                    }
+                }
+            };
+        }
+
+        modifyUserComponents(index, property, value) {
+            this.userComponents[index][property] = Number(this.formatOutputValue(value));
+            if (this.onComponentUpdate) this.onComponentUpdate();
+            this.showFloatingValue(value, null, property);
+        }
+
+        updateAnswerString() {
+            const answerStr = this.userComponents.map(comp => {
+                const freq = this.formatOutputValue(comp.freq);
+                const amp = this.formatOutputValue(comp.amp);
+                const phase = this.formatOutputValue(comp.phase);
+                return `${freq} ${amp} ${phase}`;
+            }).join(', ');
+
+            document.getElementById('answerString').textContent = answerStr;
+
+            const typeans = document.getElementById('typeans');
+            if (typeans) {
+                typeans.value = answerStr;
+            }
+        }
+
+        navigateNext() {
+            if (this.currentComponentIndex < this.components.length - 1) {
+                this.currentComponentIndex++;
+                this.updateComponentView();
+            }
+        }
+
+        navigatePrev() {
+            if (this.currentComponentIndex > 0) {
+                this.currentComponentIndex--;
+                this.updateComponentView();
+            }
+        }
+
+        updateComponentView() {
+            document.getElementById('componentNumber').textContent =
+                'Component ' + (this.currentComponentIndex + 1) + ' of ' + this.components.length;
+
+            document.getElementById('prevComponent').disabled = this.currentComponentIndex === 0;
+            document.getElementById('nextComponent').disabled = this.currentComponentIndex === this.components.length - 1;
+
+            const container = document.getElementById('sliderContainer');
+            container.innerHTML = '';
+            container.appendChild(this.createComponent(this.currentComponentIndex));
+
+            this.updateSliderValues();
+        }
+
+        updateSliderValues() {
+            const component = this.userComponents[this.currentComponentIndex];
+            const container = document.querySelector('.component-container');
+
+            ['freq', 'amp', 'phase'].forEach(controlName => {
+                const slider = container.querySelector(`[data-control="${controlName}"]`);
+                if (slider) {
+                    slider.value = this.convertToSliderValue(controlName, component[controlName]);
+                }
+            });
+        }
+    }
+
+    // Modified easing function with better precision for small values
+    function easeInOutCubic(t) {
+        // Ensure t is between 0 and 1
+        t = Math.max(0, Math.min(1, t));
+
+        // Enhanced precision cubic easing
+        if (t < 0.5) {
+            return 4 * t * t * t;
+        } else {
+            const t2 = -2 * t + 2;
+            return 1 - (t2 * t2 * t2) / 2;
+        }
+    }
+
+    function arePointsEqual(points1, points2) {
+        if (points1.length !== points2.length) {
+            return false;
+        }
+        for (var i = 0; i < points1.length; i++) {
+            if (points1[i] !== points2[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    class WaveformRenderer {
+        constructor() {
+            this.animationState = {
+                queues: {
+                    'red': {
+                        frames: [],
+                        currentFrame: 0,
+                        lastClearTime: 0
+                    },
+                    'blue': {
+                        frames: [],
+                        currentFrame: 0,
+                        lastClearTime: 0
+                    },
+                    '#d3d2d2': {
+                        frames: [],
+                        currentFrame: 0,
+                        lastClearTime: 0
+                    },
+                    'rgba(41,198,33,0.42)': {
+                        frames: [],
+                        currentFrame: 0,
+                        lastClearTime: 0
+                    }
+                },
+                isAnimating: false,
+                stepTime: 16
+            };
+        }
+
+        setupCanvas(canvas) {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.width * 0.25 * dpr;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            return ctx;
+        }
+
+        drawGridLines(canvas, ctx, numCycles) {
+            var rect = canvas.getBoundingClientRect();
+            var cycleWidth = rect.width / numCycles;
+
+            // Set initial grid style for background grid
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+
+            // Draw vertical cycle lines
+            ctx.setLineDash([5, 5]);
+            for (var i = 0; i <= numCycles; i++) {
+                var x = i * cycleWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, rect.height);
+                ctx.stroke();
+            }
+
+            // Draw horizontal amplitude lines
+            var canvasHeight = rect.height;
+            var centerY = canvasHeight / 2;
+            var stepSize = (canvasHeight - 20) / 20; // 20 steps for -1 to 1 in 0.1 increments
+
+            for (var i = -10; i <= 10; i++) {
+                if (i !== 0) {  // Skip the centre line here, we'll draw it separately
+                    var y = centerY + (i * stepSize);
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(rect.width, y);
+                    ctx.stroke();
+                }
+            }
+
+            // Reset dash setting
+            ctx.setLineDash([]);
+
+            // Draw the centre line (x-axis) with a different style
+            ctx.strokeStyle = '#c8c8c8';  // Darker grey for the centre line
+            ctx.lineWidth = 2;  // Thicker line
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(rect.width, centerY);
+            ctx.stroke();
+        }
+
+        calculateWaveform(width, height, comps, numCycles) {
+            var scale = (height / 2 - 20);
+            var points = [];
+            for (var x = 0; x < width; x++) {
+                points[x] = 0;
+            }
+
+            for (var i = 0; i < comps.length; i++) {
+                var comp = comps[i];
+                for (var x = 0; x < width; x++) {
+                    var t = x * (Math.PI * 2 * numCycles / width);
+                    if (comp.freq === 0)
+                        points[x] -= comp.amp;
+                    else
+                        points[x] -= comp.amp * Math.sin(comp.freq * t + comp.phase * Math.PI * 2);
+                }
+            }
+            for (var x = 0; x < width; x++) {
+                points[x] = points[x] * scale + height / 2;
+            }
+            return points;
+        }
+
+        drawWaveform(canvas, points, colour, ctx) {
+            // Draw waveform
+            ctx.strokeStyle = colour;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+
+            for (var x = 0; x < points.length; x++) {
+                var scaledY = points[x]
+                if (x === 0) {
+                    ctx.moveTo(x, scaledY);
+                } else {
+                    ctx.lineTo(x, scaledY);
+                }
+            }
+            ctx.stroke();
+        }
+
+        calculateMorphFrames(startPoints, endPoints, steps, color) {
+            const frames = [];
+            const width = startPoints.length;
+
+            for (let step = 0; step <= steps; step++) {
+                const rawProgress = step / steps;
+                const progress = easeInOutCubic(rawProgress);
+
+                const framePoints = new Array(width);
+                for (let x = 0; x < width; x++) {
+                    framePoints[x] = startPoints[x] + (endPoints[x] - startPoints[x]) * progress;
+                }
+
+                frames.push({
+                    points: framePoints,
+                    color: color
+                });
+            }
+
+            return frames;
+        }
+
+        scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx, numCycles, clearOthers=false) {
+            const duration = 1000; // Animation duration in milliseconds
+            const steps = Math.floor(duration / this.animationState.stepTime);
+            var newFrames;
+
+            if (arePointsEqual(startPoints, endPoints)) {
+                newFrames = [{
+                    points: JSON.parse(JSON.stringify(startPoints)),
+                    color: color
+                }]
+            } else {
+                newFrames = this.calculateMorphFrames(startPoints, endPoints, steps, color);
+            }
+
+            if (clearOthers) {
+                Object.keys(this.animationState.queues).forEach(colour => {
+                    if (colour !== color) {
+                        this.animationState.queues[colour].frames = [];
+                        this.animationState.queues[colour].currentFrame = 0;
+                    }
+                });
+            }
+
+            // If it's been more than 5 seconds since the last clear, or no animation is running,
+            // clear the queue and start fresh
+            const now = Date.now();
+            if (!this.animationState.isAnimating || now - this.animationState.queues[color].lastClearTime > 5000) {
+                this.animationState.queues[color].frames = newFrames;
+                this.animationState.queues[color].currentFrame = 0;
+                this.animationState.queues[color].lastClearTime = now;
+            } else {
+                this.animationState.queues[color].frames = this.animationState.queues[color].frames.concat(newFrames);
+            }
+
+            // If not already animating, start the animation loop
+            if (!this.animationState.isAnimating) {
+                this.animationState.isAnimating = true;
+                requestAnimationFrame(() => this.drawNextFrame(canvas, ctx, numCycles));
+            }
+        }
+
+        stopAnimation() {
+            this.animationState.isAnimating = false;
+            Object.keys(this.animationState.queues).forEach(colour => {
+                this.animationState.queues[colour].currentFrame = 0;
+                this.animationState.queues[colour].frames = [];
+            });
+        }
+
+        drawNextFrame(canvas, ctx, numCycles) {
+            const activeQueues = Object.keys(this.animationState.queues).filter(color =>
+                this.animationState.queues[color].frames.length > 0
+            );
+            // Ensure 'red' is processed last
+            activeQueues.sort(color => (color === 'red' ? 1 : -1));
+
+            if (activeQueues.length === 0) {
+                this.stopAnimation();
+                return;
+            }
+
+            // Clear canvas and redraw grid
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            this.drawGridLines(canvas, ctx, numCycles);
+
+            let shouldContinue = false;
+
+            // Draw current frame for each active queue
+            activeQueues.forEach(colour => {
+                const queue = this.animationState.queues[colour];
+                const frameIndex = Math.min(queue.currentFrame, queue.frames.length - 1);
+                const frame = queue.frames[frameIndex];
+
+                this.drawWaveform(canvas, frame.points, colour, ctx);
+
+                // Only increment if we haven't reached the end
+                if (queue.currentFrame < queue.frames.length - 1) {
+                    queue.currentFrame++;
+                    shouldContinue = true;
+                }
+            });
+
+            // Continue animation if any queue still has frames
+            if (shouldContinue) {
+                setTimeout(() => {
+                    requestAnimationFrame(() => this.drawNextFrame(canvas, ctx, numCycles));
+                }, this.animationState.stepTime);
+            } else {
+                this.stopAnimation();
+            }
+        }
+
+        redrawAll(numCycles, components, targetCanvas) {
+            var ctx = this.setupCanvas(targetCanvas);
+            var rect = targetCanvas.getBoundingClientRect();
+
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            this.drawGridLines(targetCanvas, ctx, numCycles);
+
+            var points = this.calculateWaveform(rect.width, rect.height, components, numCycles);
+            this.drawWaveform(targetCanvas, points, 'blue', ctx);
+
+            this.stopAnimation();
+        }
+    }
+
+    // Parse frequency string
+    var frequencyString = "{{frequencies}}";
+    var answerString = "1 1 0";
+    var numCycles = 2;
+
+    const audioHandler = new AudioHandler();
+    const targetRenderer = new WaveformRenderer();
+    const attemptRenderer = new WaveformRenderer();
+    const componentManager = new ComponentManager();
+
+    if (!document.getElementById('answer')) {
+        // var userComponents = [];
+        var redPoints = null;
+    }
+
+    function updateCycles() {
+        numCycles = parseFloat(this.value);
+        document.getElementById('cyclesValue').textContent = numCycles.toFixed(0);
+        targetRenderer.redrawAll(numCycles, componentManager.components, document.getElementById("targetCanvas"));
+        drawAttempt();
+    }
+
+    function updateAnswerString() {
+        const answerStr = userComponents.map(comp => {
+            let freq = formatOutputValue(comp.freq);
+            let amp = formatOutputValue(comp.amp);
+            let phase = formatOutputValue(comp.phase);
+            return `${freq} ${amp} ${phase}`;
+        }).join(', ');
+
+        document.getElementById('answerString').textContent = answerStr;
+
+        // Update typeans if it exists
+        const typeans = document.getElementById('typeans');
+        if (typeans) {
+            typeans.value = answerStr;
+        }
+    }
+
+    function initializeCopyButton() {
+        document.getElementById('copyButton').onclick = function () {
+            var text = document.getElementById('answerString').textContent;
+            navigator.clipboard.writeText(text).then(function () {
+                var originalText = this.textContent;
+                this.textContent = 'Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 1000);
+            }.bind(this));
+        };
+    }
+
+    function drawAttempt() {
+        var canvas = document.getElementById('attemptCanvas');
+        var ctx = attemptRenderer.setupCanvas(canvas);
+        var rect = canvas.getBoundingClientRect();
+
+        const userComponentsPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, componentManager.userComponents, numCycles);
+        if (componentManager.lastModifiedHarmonic !== null) {
+            var userComponentsWithoutTheModifiedOne = JSON.parse(JSON.stringify(componentManager.userComponents));
+            userComponentsWithoutTheModifiedOne[componentManager.lastModifiedHarmonic] = {freq: 0, amp: 0, phase: 0};
+
+            if (componentManager.activeInteractions > 0) {
+                var withoutModifiedCompPoints =
+                    attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
+                if (redPoints === null) {
+                    redPoints = userComponentsPoints;
+                }
+                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx, numCycles);
+                redPoints = withoutModifiedCompPoints;
+
+                const modifiedComponentOnly = [
+                    JSON.parse(JSON.stringify(componentManager.userComponents[componentManager.lastModifiedHarmonic]))
+                ];
+                const modifiedPointsOnly = attemptRenderer.calculateWaveform(rect.width, rect.height, modifiedComponentOnly, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, modifiedPointsOnly, modifiedPointsOnly, 'rgba(41,198,33,0.42)', ctx, numCycles);
+
+
+            } else if (componentManager.activeInteractions === 0) {
+                if (redPoints === null) {
+                    redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
+                }
+                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles, true);
+                redPoints = userComponentsPoints;
+                componentManager.lastModifiedHarmonic = null;
+            }
+        } else {
+            if (redPoints === null) {
+                redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, [{
+                    amp: 0,
+                    freq: 0,
+                    phase: 0
+                }], numCycles);
+            }
+            attemptRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, 'red', ctx, numCycles);
+            redPoints = userComponentsPoints;
+        }
+    }
+
+    // Initialize everything
+    function init() {
+        // Set up component manager callbacks
+        componentManager.onComponentUpdate = () => {
+            drawAttempt();
+            componentManager.updateAnswerString();
+        };
+        componentManager.onInteractionComplete = () => {
+            audioHandler.playWaveform(componentManager.userComponents);
+        };
+
+        // Initialize components
+        componentManager.initializeComponents(frequencyString, answerString);
+
+        // Initialize audio handlers
+        audioHandler.initializeAudioHandlers(document.getElementById("targetCanvas"), componentManager.components);
+        audioHandler.initializeAudioHandlers(document.getElementById('attemptCanvas'), componentManager.userComponents);
+
+        // Set up event listeners
+        document.getElementById('cyclesSlider').onchange = updateCycles;
+        document.getElementById('cyclesSlider').oninput = updateCycles;
+        document.getElementById('prevComponent').onclick = () => componentManager.navigatePrev();
+        document.getElementById('nextComponent').onclick = () => componentManager.navigateNext();
+
+        // Initialize UI
+        componentManager.updateComponentView();
+        targetRenderer.redrawAll(numCycles, componentManager.components, document.getElementById("targetCanvas"));
+        drawAttempt();
+        componentManager.updateAnswerString();
+        initializeCopyButton();
+
+        // Handle window resize
+        var resizeTimer = null;
+        window.onresize = function () {
+            if (resizeTimer) {
+                clearTimeout(resizeTimer);
+            }
+            resizeTimer = setTimeout(() => {
+                targetRenderer.redrawAll(numCycles, componentManager.components, document.getElementById("targetCanvas"));
+                drawAttempt();
+            }, 250);
+        };
+    }
+
+    // Start the application
+    init();
+</script>
