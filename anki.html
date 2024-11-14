@@ -32,7 +32,14 @@
 <script>
     // Parse frequency string
     var frequencyString = "{{frequencies}}";
+    {{#initial_data}}
+    var answerString = "{{initial_data}}";
+    {{/initial_data}}
+
+    {{^initial_data}}
     var answerString = "1 1 0";
+    {{/initial_data}}
+
     var numCycles = 2;
 
     // Modified easing function with better precision for small values
