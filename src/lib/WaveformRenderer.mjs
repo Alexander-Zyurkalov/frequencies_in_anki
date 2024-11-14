@@ -43,6 +43,11 @@ class WaveformRenderer {
                     frames: [],
                     currentFrame: 0,
                     lastClearTime: 0
+                },
+                '#29c621': {
+                    frames: [],
+                    currentFrame: 0,
+                    lastClearTime: 0
                 }
             },
             isAnimating: false,

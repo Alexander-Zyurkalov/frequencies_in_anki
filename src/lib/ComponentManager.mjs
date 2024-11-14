@@ -254,6 +254,13 @@ export class ComponentManager {
         }
     }
 
+    navigatePrev() {
+        if (this.currentComponentIndex > 0) {
+            this.currentComponentIndex--;
+            this.updateComponentView();
+        }
+    }
+
     updateComponentView() {
         document.getElementById('componentNumber').textContent =
             'Component ' + (this.currentComponentIndex + 1) + ' of ' + this.components.length;

@@ -19,18 +19,7 @@
         <canvas id="attemptCanvas" width="800" height="200"></canvas>
     </div>
 
-    <div class="navigation-controls">
-        <button id="prevComponent" class="nav-button">&lt; Previous</button>
-        <span id="componentNumber">Component 1 of X</span>
-        <button id="nextComponent" class="nav-button">Next &gt;</button>
-    </div>
 
-    <div id="sliderContainer"></div>
-
-    <div class="answer-container">
-        <span id="answerString"></span>
-        <button id="copyButton" class="copy-button">Copy</button>
-    </div>
 </div>
 
 <script type="module">
@@ -109,14 +98,6 @@
                 attemptRenderer.scheduleMorphicDraw(canvas, redPoints, withoutModifiedCompPoints, 'red', ctx, numCycles);
                 attemptRenderer.scheduleMorphicDraw(canvas, userComponentsPoints, userComponentsPoints, '#d3d2d2', ctx, numCycles);
                 redPoints = withoutModifiedCompPoints;
-
-                const modifiedComponentOnly = [
-                    JSON.parse(JSON.stringify(componentManager.userComponents[componentManager.lastModifiedHarmonic]))
-                ];
-                const modifiedPointsOnly = attemptRenderer.calculateWaveform(rect.width, rect.height, modifiedComponentOnly, numCycles);
-                attemptRenderer.scheduleMorphicDraw(canvas, modifiedPointsOnly, modifiedPointsOnly, '#29c621', ctx, numCycles);
-
-
             } else if (componentManager.activeInteractions === 0) {
                 if (redPoints === null) {
                     redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
