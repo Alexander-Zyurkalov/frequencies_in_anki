@@ -114,14 +114,14 @@
                     JSON.parse(JSON.stringify(componentManager.userComponents[componentManager.lastModifiedHarmonic]))
                 ];
                 const modifiedPointsOnly = attemptRenderer.calculateWaveform(rect.width, rect.height, modifiedComponentOnly, numCycles);
-                attemptRenderer.scheduleMorphicDraw(canvas, modifiedPointsOnly, modifiedPointsOnly, '#29c621', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, modifiedPointsOnly, modifiedPointsOnly, 'rgba(41,198,33,0.42)', ctx, numCycles);
 
 
             } else if (componentManager.activeInteractions === 0) {
                 if (redPoints === null) {
                     redPoints = attemptRenderer.calculateWaveform(rect.width, rect.height, userComponentsWithoutTheModifiedOne, numCycles);
                 }
-                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles);
+                attemptRenderer.scheduleMorphicDraw(canvas, redPoints, userComponentsPoints, 'red', ctx, numCycles, true);
                 redPoints = userComponentsPoints;
                 componentManager.lastModifiedHarmonic = null;
             }

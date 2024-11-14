@@ -44,7 +44,7 @@ class WaveformRenderer {
                     currentFrame: 0,
                     lastClearTime: 0
                 },
-                '#29c621': {
+                'rgba(41,198,33,0.42)': {
                     frames: [],
                     currentFrame: 0,
                     lastClearTime: 0
@@ -174,7 +174,7 @@ class WaveformRenderer {
         return frames;
     }
 
-    scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx, numCycles) {
+    scheduleMorphicDraw(canvas, startPoints, endPoints, color, ctx, numCycles, clearOthers=false) {
         const duration = 1000; // Animation duration in milliseconds
         const steps = Math.floor(duration / this.animationState.stepTime);
         var newFrames;
@@ -186,6 +186,15 @@ class WaveformRenderer {
             }]
         } else {
             newFrames = this.calculateMorphFrames(startPoints, endPoints, steps, color);
+        }
+
+        if (clearOthers) {
+            Object.keys(this.animationState.queues).forEach(colour => {
+                if (colour !== color) {
+                    this.animationState.queues[colour].frames = [];
+                    this.animationState.queues[colour].currentFrame = 0;
+                }
+            });
         }
 
         // If it's been more than 5 seconds since the last clear, or no animation is running,
